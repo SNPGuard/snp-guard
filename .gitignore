@@ -2,3 +2,4 @@ build
 hacky-testdata
 compile_commands.json
 .cache/
+attestation_server/target

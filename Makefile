@@ -56,6 +56,7 @@ $(BIN_DIR)/initramfs.cpio.gz: rootfs $(BIN_DIR)/init
 	# cp $(BIN_DIR)/init $(ROOTFS_DIR)/init
 	# cp ./switch_to_new_root.sh $(ROOTFS_DIR)/switch_to_new_root.sh
 	cp ./init.sh $(ROOTFS_DIR)/init
+	cp ./attestation_server/target/debug/server $(ROOTFS_DIR)/server
 	./copy-additional-deps.sh $(ROOTFS_DIR) "$(ROOTFS_EXTRA_FILES)"
 	#to run properly after startup, the files must be owned by root
 	sudo chown -R root:root $(ROOTFS_DIR)

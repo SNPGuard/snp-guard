@@ -27,9 +27,24 @@ insmod ./sev-guest.ko
 
 
 #mount encrypted disk
-insmod dm-crypt.ko
+insmod ./dm-crypt.ko
+
+# load kernel module for ethernet support
+insmod ./failover.ko
+insmod ./net_failover.ko
+insmod ./virtio_net.ko
+
+# assign IP address
+dhclient
+
+echo "IP Data: $(ip addr)"
+
+#start network server handle attestation + disk pw receival
+./server || exit 1
 #TODO:get pw via attestation server
-PW="mysecretdiskpw"
+PW=$(cat ./disk_key.txt)
+shred -u ./disk_key.txt
+echo "Disk key is ${PW}"
 echo ${PW} | cryptsetup luksOpen /dev/sda3 sda3_crypt
  
 #activate lvm2 (used by ubuntu as default when using crypto disk)
