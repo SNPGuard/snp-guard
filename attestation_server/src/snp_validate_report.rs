@@ -1,10 +1,8 @@
 use std::{
-    env::temp_dir,
     fmt::Display,
     fs::{self, File},
     io::{self, Read, Write},
     path::PathBuf,
-    process::Output,
 };
 
 use reqwest::{blocking, Url};

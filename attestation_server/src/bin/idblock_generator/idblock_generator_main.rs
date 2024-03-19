@@ -6,16 +6,10 @@ use base64::{engine::general_purpose, Engine};
 use clap::Parser;
 use snafu::{ResultExt, Whatever};
 
-use sev::{
-    firmware::guest::Firmware,
-    launch::snp::{Policy, PolicyFlags},
-    measurement::{
-        idblock::{generate_key_digest, load_priv_key, snp_calculate_id},
-        idblock_types::{FamilyId, IdAuth, IdBlock, IdBlockLaunchDigest, IdMeasurements, ImageId},
-        large_array::LargeArray,
-        snp::snp_calc_launch_digest,
-    },
-    Version,
+use sev::measurement::{
+    idblock::snp_calculate_id,
+    idblock_types::{IdBlockLaunchDigest, IdMeasurements},
+    large_array::LargeArray,
 };
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]

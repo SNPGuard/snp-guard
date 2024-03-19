@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use sev::{
-    firmware::guest::GuestFieldSelect,
     launch::snp::Policy,
     measurement::{
         idblock_types::{FamilyId, ImageId},

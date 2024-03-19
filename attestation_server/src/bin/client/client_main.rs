@@ -15,15 +15,7 @@ use ring::{
     agreement,
     rand::{SecureRandom, SystemRandom},
 };
-use sev::{
-    firmware::guest::AttestationReport,
-    measurement::{
-        gctx,
-        snp::{snp_calc_launch_digest, SnpMeasurementArgs},
-        vmsa::VMMType,
-    },
-};
-use snafu::{ResultExt, Whatever};
+use sev::firmware::guest::AttestationReport;
 
 #[derive(Parser, Debug)]
 struct Args {
