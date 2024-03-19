@@ -1,4 +1,4 @@
-use std::{io::Write, mem};
+use std::io::Write;
 
 use ring::agreement::{self, UnparsedPublicKey};
 use sev::{

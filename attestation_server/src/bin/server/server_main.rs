@@ -1,3 +1,4 @@
+//! Server to run inside the VM to perform attestation and securely receive a (disk encryption) secret
 use std::{env, fs::File, io::Write, str};
 
 use attestation_server::{
@@ -5,10 +6,10 @@ use attestation_server::{
     snp_attestation::{MockSNPAttestation, QuerySNPAttestation, SNPAttestation},
 };
 use ring::{
-    agreement::{self, UnparsedPublicKey},
+    agreement::{self},
     rand,
 };
-use tiny_http::{Header, Request, Response, Server};
+use tiny_http::{Request, Response, Server};
 
 fn wait_for_request(server: &Server) -> Request {
     loop {

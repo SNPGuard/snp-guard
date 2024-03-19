@@ -1,10 +1,14 @@
+//! Tool for the VM Owner to verify the attestation report at runtime and securely
+//! provision a disk encryption key to the VM
 use std::{env, fs::File, io::Write};
 
 use attestation_server::{
+    calc_expected_ld::VMDescription,
     req_resp_ds::{aead_enc, AttestationRequest, WrappedDiskKey},
     snp_attestation::ReportData,
     snp_validate_report::{verify_report_signature, CachingVCEKDownloader, ProductName},
 };
+
 use clap::Parser;
 use reqwest::blocking::Client;
 use ring::{
@@ -18,7 +22,12 @@ struct Args {
     #[arg(long)]
     disk_key: String,
     #[arg(long)]
-    expected_disgest: String,
+    ///Config file used to compute the expected vm hash
+    vm_definition: String,
+    ///Override the content of "kernel_cmdline" from the config while
+    ///Useful to test one-off changes
+    override_kernel_cmdline: Option<String>,
+    #[arg(long, default_value = "./auth-block.base64")]
     #[arg(long)]
     ///If set, we store the attestation report under this path
     dump_report: Option<String>,
@@ -27,6 +36,19 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let server_url = env::var("SERVER_URL").unwrap_or("http://localhost:8080".to_string());
+
+    let vm_desc_file = File::open(args.vm_definition).expect("todo");
+    let mut vm_description: VMDescription = serde_json::from_reader(vm_desc_file).expect("todo");
+
+    if let Some(cmdline_override) = args.override_kernel_cmdline {
+        vm_description.kernel_cmdline = cmdline_override;
+    }
+
+    let expected_ld = vm_description.compute_expected_hash().expect("todo");
+    println!(
+        "Computed expected launch digest: {}",
+        hex::encode(expected_ld)
+    );
 
     //Phase1: Request attestation report from server and validate it
     //As part of the report, we get a public key agreement key
@@ -73,10 +95,6 @@ fn main() {
     println!("Report Signature is valid!");
 
     println!("Received Launch digest: {}", hex::encode(resp.measurement));
-    let expected_ld: [u8; 48] = hex::decode(args.expected_disgest)
-        .expect("failed to decode expected digest hex string from cli")
-        .try_into()
-        .expect("provided expected digest has wrong length");
     assert_eq!(resp.measurement, expected_ld);
     let user_report_data: ReportData = resp.report_data.into();
     assert_eq!(user_report_data.nonce, nonce);
