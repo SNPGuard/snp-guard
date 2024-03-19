@@ -11,6 +11,10 @@ path = "src/bin/server/server_main.rs"
 name = "client"
 path = "src/bin/client/client_main.rs"
 
+[[bin]]
+name = "config-generator"
+path = "src/bin/config_generator/config_generator_main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

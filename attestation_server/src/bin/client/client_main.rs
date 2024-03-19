@@ -1,32 +1,74 @@
 use std::{env, fs::File, io::Write};
 
 use attestation_server::{
+    calc_expected_ld::VMDescription,
     req_resp_ds::{aead_enc, AttestationRequest, WrappedDiskKey},
     snp_attestation::ReportData,
     snp_validate_report::{verify_report_signature, CachingVCEKDownloader, ProductName},
 };
+
 use clap::Parser;
 use reqwest::blocking::Client;
 use ring::{
     agreement,
     rand::{SecureRandom, SystemRandom},
 };
-use sev::firmware::guest::AttestationReport;
+use sev::{
+    firmware::guest::AttestationReport,
+    measurement::{
+        gctx,
+        snp::{snp_calc_launch_digest, SnpMeasurementArgs},
+        vmsa::VMMType,
+    },
+};
+use snafu::{ResultExt, Whatever};
 
 #[derive(Parser, Debug)]
 struct Args {
     #[arg(long)]
     disk_key: String,
     #[arg(long)]
-    expected_disgest: String,
+    ///Config file used to compute the expected vm hash
+    vm_definition: String,
     #[arg(long)]
     ///If set, we store the attestation report under this path
     dump_report: Option<String>,
 }
 
+fn compute_expected_hash(d: &VMDescription) -> Result<[u8; 384 / 8], Whatever> {
+    let snp_measure_args = SnpMeasurementArgs {
+        vcpus: d.vcpu_count,
+        vcpu_type: "EPYC-v4".into(),
+        ovmf_file: d.ovmf_file.clone().into(),
+        guest_features: d.guest_features,
+        kernel_file: Some(d.kernel_file.clone().into()),
+        initrd_file: Some(d.initrd_file.clone().into()),
+        append: if d.kernel_cmdline != "" {
+            Some(&d.kernel_cmdline)
+        } else {
+            None
+        },
+        //if none, we calc ovmf hash based on ovmf file
+        ovmf_hash_str: None,
+        vmm_type: Some(VMMType::QEMU),
+    };
+
+    let ld = snp_calc_launch_digest(snp_measure_args)
+        .whatever_context("failed to compute launch digest")?;
+    Ok(ld)
+}
+
 fn main() {
     let args = Args::parse();
     let server_url = env::var("SERVER_URL").unwrap_or("http://localhost:8080".to_string());
+
+    let vm_desc_file = File::open(args.vm_definition).expect("todo");
+    let vm_descrition: VMDescription = serde_json::from_reader(vm_desc_file).expect("todo");
+    let expected_ld = compute_expected_hash(&vm_descrition).expect("todo");
+    println!(
+        "Computed expected launch digest: {}",
+        hex::encode(expected_ld)
+    );
 
     //Phase1: Request attestation report from server and validate it
     //As part of the report, we get a public key agreement key
@@ -73,10 +115,6 @@ fn main() {
     println!("Report Signature is valid!");
 
     println!("Received Launch digest: {}", hex::encode(resp.measurement));
-    let expected_ld: [u8; 48] = hex::decode(args.expected_disgest)
-        .expect("failed to decode expected digest hex string from cli")
-        .try_into()
-        .expect("provided expected digest has wrong length");
     assert_eq!(resp.measurement, expected_ld);
     let user_report_data: ReportData = resp.report_data.into();
     assert_eq!(user_report_data.nonce, nonce);
