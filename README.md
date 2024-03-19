@@ -7,7 +7,9 @@ You need to add paths to the following files to the `ROOTFS_EXTRA_FILES` env var
 - tsm.ko
 - sev-guest.ko
 - dm-crypt.ko
-- e1000.ko
+- virtio_net.ko
+- net_failover.ko
+- failover.ko
 
 You can obtain these files by unpacking the .deb package for the kernel with `dpkg -x`
 
