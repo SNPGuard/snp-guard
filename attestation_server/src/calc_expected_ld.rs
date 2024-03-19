@@ -1,10 +1,16 @@
 use serde::{Deserialize, Serialize};
 use sev::{
     firmware::guest::GuestFieldSelect,
-    measurement::{snp::SnpMeasurementArgs, vmsa::GuestFeatures},
+    launch::snp::Policy,
+    measurement::{
+        idblock_types::{FamilyId, ImageId},
+        snp::{snp_calc_launch_digest, SnpMeasurementArgs},
+        vmsa::{GuestFeatures, VMMType},
+    },
 };
+use snafu::{ResultExt, Whatever};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 ///User facing config struct to specify a VM.
 ///Used to compute the epxected launch measurment
 pub struct VMDescription {
@@ -14,18 +20,32 @@ pub struct VMDescription {
     pub kernel_file: String,
     pub initrd_file: String,
     pub kernel_cmdline: String,
+    pub policy: Policy,
+    pub family_id: FamilyId,
+    pub image_id: ImageId,
 }
 
-// pub fn dummy() {
-//     let a = SnpMeasurementArgs{
-//         vcpus: todo!(),
-//         vcpu_type: todo!(),
-//         ovmf_file: todo!(),
-//         guest_features: todo!(),
-//         kernel_file: todo!(),
-//         initrd_file: todo!(),
-//         append: todo!(),
-//         ovmf_hash_str: todo!(),
-//         vmm_type: todo!(),
-//     }
-// }
+impl VMDescription {
+    pub fn compute_expected_hash(&self) -> Result<[u8; 384 / 8], Whatever> {
+        let snp_measure_args = SnpMeasurementArgs {
+            vcpus: self.vcpu_count,
+            vcpu_type: "EPYC-v4".into(),
+            ovmf_file: self.ovmf_file.clone().into(),
+            guest_features: self.guest_features,
+            kernel_file: Some(self.kernel_file.clone().into()),
+            initrd_file: Some(self.initrd_file.clone().into()),
+            append: if self.kernel_cmdline != "" {
+                Some(&self.kernel_cmdline)
+            } else {
+                None
+            },
+            //if none, we calc ovmf hash based on ovmf file
+            ovmf_hash_str: None,
+            vmm_type: Some(VMMType::QEMU),
+        };
+
+        let ld = snp_calc_launch_digest(snp_measure_args)
+            .whatever_context("failed to compute launch digest")?;
+        Ok(ld)
+    }
+}

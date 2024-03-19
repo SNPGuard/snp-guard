@@ -1,3 +1,5 @@
+//! Tool for the VM Owner to verify the attestation report at runtime and securely
+//! provision a disk encryption key to the VM
 use std::{env, fs::File, io::Write};
 
 use attestation_server::{
@@ -30,32 +32,13 @@ struct Args {
     #[arg(long)]
     ///Config file used to compute the expected vm hash
     vm_definition: String,
+    ///Override the content of "kernel_cmdline" from the config while
+    ///Useful to test one-off changes
+    override_kernel_cmdline: Option<String>,
+    #[arg(long, default_value = "./auth-block.base64")]
     #[arg(long)]
     ///If set, we store the attestation report under this path
     dump_report: Option<String>,
-}
-
-fn compute_expected_hash(d: &VMDescription) -> Result<[u8; 384 / 8], Whatever> {
-    let snp_measure_args = SnpMeasurementArgs {
-        vcpus: d.vcpu_count,
-        vcpu_type: "EPYC-v4".into(),
-        ovmf_file: d.ovmf_file.clone().into(),
-        guest_features: d.guest_features,
-        kernel_file: Some(d.kernel_file.clone().into()),
-        initrd_file: Some(d.initrd_file.clone().into()),
-        append: if d.kernel_cmdline != "" {
-            Some(&d.kernel_cmdline)
-        } else {
-            None
-        },
-        //if none, we calc ovmf hash based on ovmf file
-        ovmf_hash_str: None,
-        vmm_type: Some(VMMType::QEMU),
-    };
-
-    let ld = snp_calc_launch_digest(snp_measure_args)
-        .whatever_context("failed to compute launch digest")?;
-    Ok(ld)
 }
 
 fn main() {
@@ -63,8 +46,13 @@ fn main() {
     let server_url = env::var("SERVER_URL").unwrap_or("http://localhost:8080".to_string());
 
     let vm_desc_file = File::open(args.vm_definition).expect("todo");
-    let vm_descrition: VMDescription = serde_json::from_reader(vm_desc_file).expect("todo");
-    let expected_ld = compute_expected_hash(&vm_descrition).expect("todo");
+    let mut vm_description: VMDescription = serde_json::from_reader(vm_desc_file).expect("todo");
+
+    if let Some(cmdline_override) = args.override_kernel_cmdline {
+        vm_description.kernel_cmdline = cmdline_override;
+    }
+
+    let expected_ld = vm_description.compute_expected_hash().expect("todo");
     println!(
         "Computed expected launch digest: {}",
         hex::encode(expected_ld)

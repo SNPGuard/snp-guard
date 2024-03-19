@@ -1,3 +1,4 @@
+//! Server to run inside the VM to perform attestation and securely receive a (disk encryption) secret
 use std::{env, fs::File, io::Write, str};
 
 use attestation_server::{

@@ -1,5 +1,13 @@
+//! Helper binary to generate a valid config file
 use attestation_server::calc_expected_ld::VMDescription;
-use sev::measurement::vmsa::GuestFeatures;
+use sev::{
+    launch::snp::{Policy, PolicyFlags},
+    measurement::{
+        idblock_types::{FamilyId, ImageId},
+        vmsa::GuestFeatures,
+    },
+    Version,
+};
 
 fn main() {
     let desc = VMDescription {
@@ -10,7 +18,14 @@ fn main() {
         initrd_file: "path to initramdisk file that gets passed to QEMU".to_string(),
         kernel_cmdline: "kernel commandline arguments, as passed to QEMU in the \"-append\"  arg"
             .to_string(),
+        policy: Policy {
+            flags: PolicyFlags::SMT,
+            minfw: Version { major: 0, minor: 0 },
+        },
+        family_id: FamilyId::default(),
+        image_id: ImageId::default(),
     };
+    //TODO: switch to TOML and add comments inline
     let out = serde_json::to_string_pretty(&desc).expect("failed to generate example config");
 
     let guest_features_doc = r#"Kernel features that when enabled could affect the VMSA.
