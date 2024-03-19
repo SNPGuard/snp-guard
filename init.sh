@@ -41,7 +41,6 @@ echo "IP Data: $(ip addr)"
 
 #start network server handle attestation + disk pw receival
 ./server || exit 1
-#TODO:get pw via attestation server
 PW=$(cat ./disk_key.txt)
 shred -u ./disk_key.txt
 echo "Disk key is ${PW}"
