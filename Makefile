@@ -18,8 +18,8 @@ ROOTFS_DIR= $(BIN_DIR)/nano-vm-rootfs
 
 
 
-all: setup-dirs $(BIN_DIR)/init rootfs $(BIN_DIR)/initramfs.cpio.gz
-.PHONY: clean setup-dirs rootfs deploy
+all: setup-dirs $(BIN_DIR)/init rootfs $(BIN_DIR)/initramfs.cpio.gz attestation-tools
+.PHONY: clean setup-dirs rootfs deploy attestation-tools
 
 #create output directores for build stuff
 setup-dirs:
@@ -36,6 +36,10 @@ $(OBJ_DIR)/%.o: %.c $(INCS)
 $(BIN_DIR)/init: $(OBJ_DIR)/init.o
 	gcc $(INCLUDES) $(LIBS) $(CFLAGS) -static -o $(BIN_DIR)/init $^
 
+#Build the server for the VM image as well as the guest owner tools
+attestation-tools:
+	(cd attestation_server && cargo build)
+
 #Build main content for the root filesystem that we use in the initramfs
 rootfs:
 	sudo rm -rf $(ROOTFS_DIR)
@@ -51,7 +55,7 @@ rootfs:
 	#Remove the container
 	podman rm tmp-nano-vm-rootfs
 
-$(BIN_DIR)/initramfs.cpio.gz: rootfs $(BIN_DIR)/init
+$(BIN_DIR)/initramfs.cpio.gz: rootfs $(BIN_DIR)/init attestation-tools
 	#Copy additional elements into rootfs dir
 	# cp $(BIN_DIR)/init $(ROOTFS_DIR)/init
 	# cp ./switch_to_new_root.sh $(ROOTFS_DIR)/switch_to_new_root.sh
@@ -69,3 +73,4 @@ deploy:
 
 clean:
 	rm -rf ./build
+	(cd attestation_server && cargo clean)

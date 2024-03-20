@@ -34,9 +34,14 @@ struct Args {
     out_dir: String,
 }
 
-fn main() -> Result<(), Whatever> {
+fn main() {
     let args = Args::parse();
+    if let Err(e) = run(args) {
+        println!("\nError: {:#?}\n", e);
+    }
+}
 
+fn run(args: Args) -> Result<(), Whatever> {
     let mut vm_def: VMDescription = serde_json::from_reader(
         File::open(&args.vm_definition)
             .whatever_context(format!("path {}", &args.vm_definition))?,
@@ -111,7 +116,7 @@ fn compute_id_block(
         Some(vm_def.family_id),
         Some(vm_def.image_id),
         None, //SVN is the "Security Version Number" of the PSP
-        Some(vm_def.policy.into()),
+        Some(vm_def.launch_time_policy.into()),
         id_key_path.into(),
         auth_key_path.into(),
     )

@@ -79,6 +79,7 @@ dependencies = [
  "bincode",
  "clap",
  "hex",
+ "openssl",
  "reqwest",
  "ring",
  "serde",
@@ -957,10 +958,9 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "3.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2890179f8ef689340f441ba05f0b268bc14f672ae4b36d629cc2266d0d747ab"
+source = "git+https://github.com/its-luca/sev.git?branch=dev#94510d50e25d5819ec89dadad1a1e1e65c426a22"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.0",
  "bincode",
  "bitfield",
  "bitflags 1.3.2",
