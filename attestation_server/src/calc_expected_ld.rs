@@ -1,25 +1,39 @@
 use serde::{Deserialize, Serialize};
-use sev::{
-    launch::snp::Policy,
-    measurement::{
-        idblock_types::{FamilyId, ImageId},
-        snp::{snp_calc_launch_digest, SnpMeasurementArgs},
-        vmsa::{GuestFeatures, VMMType},
-    },
+use sev::firmware::guest::{GuestPolicy, PlatformInfo};
+use sev::firmware::host::TcbVersion;
+use sev::launch::snp::Policy;
+use sev::measurement::{
+    idblock_types::{FamilyId, ImageId},
+    snp::{snp_calc_launch_digest, SnpMeasurementArgs},
+    vmsa::{GuestFeatures, VMMType},
 };
 use snafu::{ResultExt, Whatever};
+
+use crate::snp_validate_report::ProductName;
 
 #[derive(Serialize, Deserialize)]
 ///User facing config struct to specify a VM.
 ///Used to compute the epxected launch measurment
 pub struct VMDescription {
+    pub host_cpu_family: ProductName,
     pub vcpu_count: u32,
     pub ovmf_file: String,
+    /// Security relevant SEV configuration/kernel features. Defined in the VMSA of the VM. Thus they affect the computation of the expected launch measurement. See `SEV_FEATURES` in Table B-4 in https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/24593.pdf
+    ///TODO: implement nice way to detect which features are used on a given system
     pub guest_features: GuestFeatures,
     pub kernel_file: String,
     pub initrd_file: String,
     pub kernel_cmdline: String,
-    pub policy: Policy,
+    /// Used by the id block //TODO: investigate if this is missign options and where
+    //we specify this in QEMU
+    pub launch_time_policy: Policy,
+    pub platform_info: PlatformInfo,
+    ///Mininum required committed version numbers
+    ///Committed means that the platform cannot be rolled back to a prior
+    ///version
+    pub min_commited_tcb: TcbVersion,
+    /// Policy passed to QEMU and reflected in the attestation report
+    pub guest_policy: GuestPolicy,
     pub family_id: FamilyId,
     pub image_id: ImageId,
 }

@@ -1,42 +1,77 @@
 //! Tool for the VM Owner to verify the attestation report at runtime and securely
 //! provision a disk encryption key to the VM
-use std::{env, fs::File, io::Write};
+use std::{
+    env,
+    fs::{self, File},
+    io::Write,
+};
 
 use attestation_server::{
     calc_expected_ld::VMDescription,
     req_resp_ds::{aead_enc, AttestationRequest, WrappedDiskKey},
     snp_attestation::ReportData,
-    snp_validate_report::{verify_report_signature, CachingVCEKDownloader, ProductName},
+    snp_validate_report::{
+        verify_and_check_report, verify_report_signature, CachingVCEKDownloader, IDBLockReportData,
+        ProductName,
+    },
 };
 
+use base64::{engine::general_purpose, Engine};
 use clap::Parser;
 use reqwest::blocking::Client;
 use ring::{
     agreement,
     rand::{SecureRandom, SystemRandom},
 };
-use sev::firmware::guest::AttestationReport;
+use sev::{
+    firmware::guest::AttestationReport,
+    measurement::idblock_types::{IdAuth, IdBlock},
+};
+use snafu::{whatever, OptionExt, ResultExt, Whatever};
 
 #[derive(Parser, Debug)]
 struct Args {
+    #[arg(long, default_value = "http://localhost:8080")]
+    ///URL of the Server running in the VM that we want to attest
+    server_url: String,
+
     #[arg(long)]
+    ///Disk encryption key that should be injected into the VM
     disk_key: String,
+
     #[arg(long)]
     ///Config file used to compute the expected vm hash
     vm_definition: String,
+
     ///Override the content of "kernel_cmdline" from the config while
     ///Useful to test one-off changes
     override_kernel_cmdline: Option<String>,
-    #[arg(long, default_value = "./auth-block.base64")]
+
     #[arg(long)]
     ///If set, we store the attestation report under this path
     dump_report: Option<String>,
+
+    #[arg(long, requires("author_block_path"))]
+    ///Path to the id block used during launch. If this is **Some**, we will check
+    ///that the attestation report contains the corresponding data.
+    //If used, you also need to
+    ///specify `author_block_path`
+    id_block_path: Option<String>,
+    #[arg(long, requires("id_block_path"))]
+    ///Path to the id auth block used during launch. If this is **Some**, we will check
+    ///that the attestation report contains the corresponding data. If used, you also need to
+    ///specify `id_block_path`
+    author_block_path: Option<String>,
 }
 
 fn main() {
     let args = Args::parse();
-    let server_url = env::var("SERVER_URL").unwrap_or("http://localhost:8080".to_string());
+    if let Err(e) = run(args) {
+        println!("\nError: {:#?}\n", e);
+    }
+}
 
+fn run(args: Args) -> Result<(), Whatever> {
     let vm_desc_file = File::open(args.vm_definition).expect("todo");
     let mut vm_description: VMDescription = serde_json::from_reader(vm_desc_file).expect("todo");
 
@@ -49,6 +84,26 @@ fn main() {
         "Computed expected launch digest: {}",
         hex::encode(expected_ld)
     );
+
+    //If both the id block and the id auth block flag were specified, this contains the parsed data
+    //as well as a representation for checking the attestation report
+    let id_data;
+    if let (Some(id_block_path), Some(id_auth_block_path)) =
+        (&args.id_block_path, &args.author_block_path)
+    {
+        let raw_id_block = fs::read(&id_block_path)
+            .whatever_context(format!("failed to read id block from {}", &id_block_path))?;
+        let raw_id_auth_block = fs::read(&id_auth_block_path).whatever_context(format!(
+            "failed to read id auth block from {}",
+            &id_auth_block_path
+        ))?;
+        id_data = Some(
+            parse_id_block_data(&raw_id_block, &raw_id_auth_block)
+                .whatever_context("failed to parse id block related data")?,
+        );
+    } else {
+        id_data = None;
+    }
 
     //Phase1: Request attestation report from server and validate it
     //As part of the report, we get a public key agreement key
@@ -65,15 +120,15 @@ fn main() {
     let client = Client::new();
     println!("Requesting attestation report");
     let resp: AttestationReport = client
-        .post(&server_url)
+        .post(&args.server_url)
         .json(&att_req)
         .send()
         .expect("nonce request failed")
         .json()
         .expect("failed to deserialize");
-    // println!("Got attestation report: {:x?}", resp);
 
     println!("Received report");
+    println!("Received Launch digest: {}", hex::encode(resp.measurement));
 
     if let Some(dump_path) = args.dump_report {
         let f = File::create(dump_path).expect("failed to create report dump file");
@@ -82,26 +137,48 @@ fn main() {
     }
 
     println!("Verifying report signature");
-    //TODO: make ProductName configurable once the code for the expected hashes is finished
     let vcek_resolver =
         CachingVCEKDownloader::new().expect("failed to instantiate vcek downloader");
     let vcek_cert = vcek_resolver
-        .get_vceck_cert(resp.chip_id, ProductName::Milan, &resp.committed_tcb)
+        .get_vceck_cert(
+            resp.chip_id,
+            vm_description.host_cpu_family,
+            &resp.committed_tcb,
+        )
         .expect("failed to get vcek cert");
 
-    verify_report_signature(ProductName::Milan, &resp, vcek_cert)
-        .expect("Report signature invalid");
+    let report_data_validator = |vm_data: [u8; 64]| {
+        let report_data: ReportData = vm_data.clone().into();
+        if nonce != report_data.nonce {
+            whatever!(
+                "nonce validation in report data failed, expected {} got {}",
+                report_data.nonce,
+                nonce
+            );
+        }
+        Ok(())
+    };
 
-    println!("Report Signature is valid!");
+    let id_block_data = if let Some((_, _, v)) = id_data {
+        Some(v)
+    } else {
+        None
+    };
+    verify_and_check_report(
+        &resp,
+        vm_description.host_cpu_family,
+        vcek_cert,
+        id_block_data,
+        Some(vm_description.guest_policy),
+        Some(vm_description.min_commited_tcb),
+        Some(vm_description.platform_info),
+        Some(report_data_validator),
+        None, //We don't use host data right now
+        Some(expected_ld),
+    )
+    .whatever_context("Attestation Report Invalid!")?;
 
-    println!("Received Launch digest: {}", hex::encode(resp.measurement));
-    assert_eq!(resp.measurement, expected_ld);
     let user_report_data: ReportData = resp.report_data.into();
-    assert_eq!(user_report_data.nonce, nonce);
-
-    //The attestation report is signed by the AMD-SP firmware using the VCEK.
-    //TODO: verify report signatures etc
-    println!("TODO:verify signatures");
 
     //Phase2: Derive Shared secret and send encrypted disk encryption key to server
 
@@ -143,8 +220,36 @@ fn main() {
 
     println!("sending wrapped key to server");
     client
-        .post(&server_url)
+        .post(&args.server_url)
         .json(&wrapped_disk_key)
         .send()
         .expect("failed to send wrapped disk key");
+
+    Ok(())
+}
+
+///Parse the supplied data and also return a special representation
+///that is usefull for checking the attestation report
+fn parse_id_block_data(
+    id_block_raw: &[u8],
+    id_auth_block_raw: &[u8],
+) -> Result<(IdBlock, IdAuth, IDBLockReportData), Whatever> {
+    //decode id_block
+    let id_block_raw = general_purpose::STANDARD
+        .decode(&id_block_raw)
+        .whatever_context("failed to decode id block as base64")?;
+    let id_block: IdBlock =
+        bincode::deserialize(&id_block_raw).whatever_context("failed to bindecode id block")?;
+
+    //decode id_auth block
+    let id_auth_block_raw = general_purpose::STANDARD
+        .decode(&id_auth_block_raw)
+        .whatever_context("failed to decode id auth block as base64")?;
+    let id_auth_block: IdAuth = bincode::deserialize(&id_block_raw)
+        .whatever_context("failed to bindecode id auth block")?;
+
+    let id_block_report_data: IDBLockReportData =
+        (id_block.clone(), id_auth_block.clone()).try_into()?;
+
+    Ok((id_block, id_auth_block, id_block_report_data))
 }
