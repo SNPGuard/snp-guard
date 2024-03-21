@@ -28,7 +28,7 @@ USE_GDB="0"
 
 
 if [ -z "$SEV_TOOLCHAIN_PATH" ];then
-	echo "Please specify the path to the SEV toolchain in the SEV_TOOLCHAIN_PATH env var. If you used the official AMD repo, point this to \"<path to AMDESE>/usr/local\" "
+	echo "Please specify the path to the SEV toolchain in the SEV_TOOLCHAIN_PATH env var. If you used the official AMD repo, point this to \"<path to AMDSEV>/usr/local\" "
 	exit 1
 fi
 
@@ -173,6 +173,9 @@ while [ -n "$1" ]; do
 			shift
 			;;
 		-policy) SEV_POLICY="$2"
+			shift
+			;;
+		-vm-config-file) VM_CONFIG_FILE="$2"
 			shift
 			;;
 		*) 		usage
