@@ -245,7 +245,7 @@ fn parse_id_block_data(
     let id_auth_block_raw = general_purpose::STANDARD
         .decode(&id_auth_block_raw)
         .whatever_context("failed to decode id auth block as base64")?;
-    let id_auth_block: IdAuth = bincode::deserialize(&id_block_raw)
+    let id_auth_block: IdAuth = bincode::deserialize(&id_auth_block_raw)
         .whatever_context("failed to bindecode id auth block")?;
 
     let id_block_report_data: IDBLockReportData =
