@@ -16,9 +16,25 @@ INCLUDES =
 #declared here because we need it in several make targets
 ROOTFS_DIR= $(BIN_DIR)/nano-vm-rootfs
 
+#we need to copy some kernel modules to our initramfs. This gives us the path to the folder
+#containing the modules. We could also copy all of them but this makes initramfs quite large
+ifndef KERNEL_MODULES_DIR
+$(error Please specify KERNEL_MODULES_DIR env var to point to the directly with the kernel modules for the kernel that you want to run)
+endif
 
+#Used to build the initramfs for different use cases
+# - enc_disk_full_vm : unlock encrypted disk and switch root into the unlocked disk calling init
+USE_CASE ?= enc_disk_full_vm
+ifeq ($(USE_CASE),enc_disk_full_vm)
+KERNEL_MODULES = "virtio_scsi.ko sev-guest.ko tsm.ko dm-crypt.ko virtio_net.ko net_failover.ko failover.ko"
+USE_CASE_VALID = 1
+endif
 
-all: setup-dirs $(BIN_DIR)/init rootfs $(BIN_DIR)/initramfs.cpio.gz attestation-tools
+ifndef USE_CASE_VALID
+$(error Invalid value for USE_CASE)
+endif
+
+all: setup-dirs rootfs $(BIN_DIR)/initramfs.cpio.gz attestation-tools
 .PHONY: clean setup-dirs rootfs deploy attestation-tools
 
 #create output directores for build stuff
@@ -31,10 +47,6 @@ setup-dirs:
 #build all objects files
 $(OBJ_DIR)/%.o: %.c $(INCS)
 	gcc $(CFLAGS) $(INCLUDES) -o $@ -c $<
-
-#Build the init binary
-$(BIN_DIR)/init: $(OBJ_DIR)/init.o
-	gcc $(INCLUDES) $(LIBS) $(CFLAGS) -static -o $(BIN_DIR)/init $^
 
 #Build the server for the VM image as well as the guest owner tools
 attestation-tools:
@@ -57,11 +69,15 @@ rootfs:
 
 $(BIN_DIR)/initramfs.cpio.gz: rootfs $(BIN_DIR)/init attestation-tools
 	#Copy additional elements into rootfs dir
-	# cp $(BIN_DIR)/init $(ROOTFS_DIR)/init
-	# cp ./switch_to_new_root.sh $(ROOTFS_DIR)/switch_to_new_root.sh
 	cp ./init.sh $(ROOTFS_DIR)/init
+	#Copy program that does the attestation with the guest owner
 	cp ./attestation_server/target/debug/server $(ROOTFS_DIR)/server
+	#copy kernel modules required rot the selected use case
+	./copy-kernel-modules.sh $(ROOTFS_DIR) $(KERNEL_MODULES) $(KERNEL_MODULES_DIR)
+ifdef ROOTFS_EXTRA_FILES
+	#copy additional user defined files
 	./copy-additional-deps.sh $(ROOTFS_DIR) "$(ROOTFS_EXTRA_FILES)"
+endif
 	#to run properly after startup, the files must be owned by root
 	sudo chown -R root:root $(ROOTFS_DIR)
 	sudo chmod -R 777  $(ROOTFS_DIR)
