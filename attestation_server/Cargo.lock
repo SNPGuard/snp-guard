@@ -79,6 +79,7 @@ dependencies = [
  "bincode",
  "clap",
  "hex",
+ "hex-buffer-serde",
  "openssl",
  "reqwest",
  "ring",
@@ -87,6 +88,7 @@ dependencies = [
  "sev",
  "snafu",
  "tiny_http",
+ "toml",
 ]
 
 [[package]]
@@ -442,6 +444,16 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "hex-buffer-serde"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7e84645a601cf4a58f40673d51c111d1b5f847b711559c076ebcb779606a6d0"
+dependencies = [
+ "hex",
+ "serde",
+]
 
 [[package]]
 name = "http"
@@ -944,6 +956,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_spanned"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb3622f419d1296904700073ea6cc23ad690adbd66f13ea683df73298736f0c1"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -958,7 +979,7 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "3.1.1"
-source = "git+https://github.com/its-luca/sev.git?branch=dev#94510d50e25d5819ec89dadad1a1e1e65c426a22"
+source = "git+https://github.com/its-luca/sev.git?branch=dev#b10295c237da8b7a4e284e964cd3ce983930c945"
 dependencies = [
  "base64 0.22.0",
  "bincode",
@@ -1171,6 +1192,40 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "toml"
+version = "0.8.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9dd1545e8208b4a5af1aa9bbd0b4cf7e9ea08fabc5d0a5c67fcaafa17433aa3"
+dependencies = [
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_edit",
+]
+
+[[package]]
+name = "toml_datetime"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3550f4e9685620ac18a50ed434eb3aec30db8ba93b0287467bca5826ea25baf1"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "toml_edit"
+version = "0.22.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e40bb779c5187258fd7aad0eb68cb8706a0a81fa712fbea808ab43c4b8374c4"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "winnow",
 ]
 
 [[package]]
@@ -1485,6 +1540,15 @@ name = "windows_x86_64_msvc"
 version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32b752e52a2da0ddfbdbcc6fceadfeede4c939ed16d13e648833a61dfb611ed8"
+
+[[package]]
+name = "winnow"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dffa400e67ed5a4dd237983829e66475f0a4a26938c4b04c21baede6262215b8"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "winreg"

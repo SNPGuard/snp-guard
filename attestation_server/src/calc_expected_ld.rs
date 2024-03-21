@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use sev::firmware::guest::{GuestPolicy, PlatformInfo};
 use sev::firmware::host::TcbVersion;
 use sev::launch::snp::Policy;
+use sev::measurement::idblock_types::ID_BLK_ID_BYTES;
 use sev::measurement::{
     idblock_types::{FamilyId, ImageId},
     snp::{snp_calc_launch_digest, SnpMeasurementArgs},
@@ -10,8 +11,9 @@ use sev::measurement::{
 use snafu::{ResultExt, Whatever};
 
 use crate::snp_validate_report::ProductName;
+use hex_buffer_serde::{Hex as _, HexForm};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 ///User facing config struct to specify a VM.
 ///Used to compute the epxected launch measurment
 pub struct VMDescription {
@@ -24,9 +26,6 @@ pub struct VMDescription {
     pub kernel_file: String,
     pub initrd_file: String,
     pub kernel_cmdline: String,
-    /// Used by the id block //TODO: investigate if this is missign options and where
-    //we specify this in QEMU
-    pub launch_time_policy: Policy,
     pub platform_info: PlatformInfo,
     ///Mininum required committed version numbers
     ///Committed means that the platform cannot be rolled back to a prior
@@ -34,8 +33,10 @@ pub struct VMDescription {
     pub min_commited_tcb: TcbVersion,
     /// Policy passed to QEMU and reflected in the attestation report
     pub guest_policy: GuestPolicy,
-    pub family_id: FamilyId,
-    pub image_id: ImageId,
+    #[serde(with = "HexForm")]
+    pub family_id: [u8; ID_BLK_ID_BYTES],
+    #[serde(with = "HexForm")]
+    pub image_id: [u8; ID_BLK_ID_BYTES],
 }
 
 impl VMDescription {
@@ -60,5 +61,22 @@ impl VMDescription {
         let ld = snp_calc_launch_digest(snp_measure_args)
             .whatever_context("failed to compute launch digest")?;
         Ok(ld)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::fs;
+
+    use super::VMDescription;
+
+    #[test]
+    fn parse_toml() {
+        println!(
+            "Expected\n\n{}",
+            toml::to_string_pretty(&VMDescription::default()).unwrap()
+        );
+        let _conf: VMDescription =
+            toml::from_str(&fs::read_to_string("./examples/vm-config.toml").unwrap()).unwrap();
     }
 }
