@@ -1,15 +1,22 @@
 //! Tool to generate and ID block and an auth block for usage with QEMU
-use std::{fs::File, io::Write, path::PathBuf};
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::PathBuf,
+};
 
 use attestation_server::calc_expected_ld::VMDescription;
 use base64::{engine::general_purpose, Engine};
 use clap::Parser;
 use snafu::{ResultExt, Whatever};
 
-use sev::measurement::{
-    idblock::snp_calculate_id,
-    idblock_types::{IdBlockLaunchDigest, IdMeasurements},
-    large_array::LargeArray,
+use sev::{
+    firmware::guest::GuestPolicy,
+    measurement::{
+        idblock::snp_calculate_id,
+        idblock_types::{FamilyId, IdBlockLaunchDigest, IdMeasurements, ImageId},
+        large_array::LargeArray,
+    },
 };
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -42,11 +49,13 @@ fn main() {
 }
 
 fn run(args: Args) -> Result<(), Whatever> {
-    let mut vm_def: VMDescription = serde_json::from_reader(
-        File::open(&args.vm_definition)
-            .whatever_context(format!("path {}", &args.vm_definition))?,
+    let mut vm_def: VMDescription = toml::from_str(
+        &fs::read_to_string(&args.vm_definition).whatever_context(format!(
+            "failed to read config from {}",
+            &args.vm_definition
+        ))?,
     )
-    .whatever_context("failed to parse vm definition")?;
+    .whatever_context("failed to parse config as toml")?;
     if let Some(cmdline_override) = args.override_kernel_cmdline {
         vm_def.kernel_cmdline = cmdline_override;
     }
@@ -110,13 +119,14 @@ fn compute_id_block(
         LargeArray::try_from(expected_ld)
             .whatever_context("converting to id block digest failed")?,
     );
+
     // let id_block = IdBlock::new(, , , , )
     let block_calculations = snp_calculate_id(
         Some(ld),
-        Some(vm_def.family_id),
-        Some(vm_def.image_id),
+        Some(FamilyId(vm_def.family_id)),
+        Some(ImageId(vm_def.image_id)),
         None, //SVN is the "Security Version Number" of the PSP
-        Some(vm_def.launch_time_policy.into()),
+        Some(vm_def.guest_policy.0),
         id_key_path.into(),
         auth_key_path.into(),
     )

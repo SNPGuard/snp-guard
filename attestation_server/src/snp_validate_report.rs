@@ -21,9 +21,10 @@ use sev::{
 };
 use snafu::{whatever, ResultExt, Whatever};
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 ///Describes the CPU generation
 pub enum ProductName {
+    #[default]
     Milan,
     Genoa,
 }

@@ -72,8 +72,13 @@ fn main() {
 }
 
 fn run(args: Args) -> Result<(), Whatever> {
-    let vm_desc_file = File::open(args.vm_definition).expect("todo");
-    let mut vm_description: VMDescription = serde_json::from_reader(vm_desc_file).expect("todo");
+    let mut vm_description: VMDescription = toml::from_str(
+        &fs::read_to_string(&args.vm_definition).whatever_context(format!(
+            "failed to read config from {}",
+            &args.vm_definition
+        ))?,
+    )
+    .whatever_context("failed to parse config as toml")?;
 
     if let Some(cmdline_override) = args.override_kernel_cmdline {
         vm_description.kernel_cmdline = cmdline_override;

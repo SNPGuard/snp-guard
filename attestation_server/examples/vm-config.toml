@@ -1,0 +1,89 @@
+#Name of the CPU generation running the VM. Relevant for selecting the correct
+#certificate chain when veryfing the attestation report
+host_cpu_family = "Milan"
+#Number of virtual CPUs used by the VM. As each VCPU has its own VMSA, this influences the launch digest in the attestation report
+vcpu_count = 1
+#Path to the OVMF binary that should be used to boot the VM. Influences the launch digest in the attestation report
+ovmf_file = "path to OVMF.fd file used by QEMU"
+# Guest-controlled SEV feature selection as defined in the SEV_FEATURES section
+# of the VMSA (Table B-4 in [1] )
+#Since these are part of the VMSA, they influence the launch digest in the attestation report
+# For now, there does not seem to be an easy way to configure these from userspace
+# All SEV-SNP VMs have bit 0 set
+# Bit 5 is set, /sys/module/kvm_amd/parameters/debug_swap is set and your CPU supports the feature, as indicated by cpuid "full debug state swap for SEV-ES guests  = true"
+guest_features = 0x21
+#Path to the kernel that should get booted. Influences the lauch digest in the attestation report
+kernel_file = "path to kernel file that gets passed to QMEU"
+#Path to the initramdisk file that should be used for booting. Influences the launch digest in the attestation report
+initrd_file = "path to initramdisk file that gets passed to QEMU"
+#Kernel commandline parameters. Influences the launch digest in the attestation support
+# For debugging, you might want to use "console=ttyS0" to have a shell. Note however, that all information shown in this shell if copied to unecrytped video buffer memory
+#kernel_cmdline = "kernel commandline arguments, as passed to QEMU in the \"-append\"  arg"
+kernel_cmdline = ""
+
+# Information about security relevant configuration option that affect the
+# whole host system, e.g. if SMT or RAPL are enabled.
+# Values are defined in Table 23 in [2]
+# Attested by the the attestation report
+platform_info = 1
+
+# Guest-controlled config that can request the enablement of certain security
+# reveleant configuration on the host and also controls if the VM is debuggable
+# Values are defined in Table 9 in [2]
+# Attested by the attestation report
+guest_policy = 0x30000
+
+
+# OPTIONAL: Only used if id block and auth block are used see [3] for more information
+# Arbitrary used defined data to describe the VM. Defined in Table 74 in [2]
+# Interpreted as hex. Must be exactly 16 bytes long
+# Attested by the attestation report
+family_id = "00000000000000000000000000000000"
+
+# OPTIONAL: Only used if id block and auth block are used see [3] for more information
+# Arbitrary used defined data to describe the VM. Defined in Tablej 74 in [2]
+# Interpreted as hex. Must be exactly 16 bytes long
+# Attested by the attestation report
+image_id =  "00000000000000000000000000000000"
+
+
+#Request the minium version number that the host can use
+#for certain security relevant software components
+#Use the "sev-feature-info" tool on the host to discover the
+# currently used values
+# The attestation report contains 3 different variants for the
+# TCB: committed, launch and current
+# We check against the committed version as this ensures that the HV
+# cannot use a version older than this. However, the commmited version
+#  might be lower than the version reported by the tool.
+# Currently I don't now an easy way to find the commited version
+# If you boot without any firmware files in /lib/firmware/amd/
+# the reported version should match the committed version
+[min_commited_tcb]
+bootloader = 3
+tee = 0
+#do not change this
+_reserved = [
+    0,
+    0,
+    0,
+    0,
+]
+snp = 20
+microcode = 209
+
+
+
+# References
+# [1] https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/24593.pdf
+# [2] https://www.amd.com/content/dam/amd/en/documents/epyc-technical-docs/specifications/56860.pdf
+# [3] More details on id block + id auth block:
+# This features allows to pass signed config blobs to QEMU that check
+# the launch digest of the VM as well as certain config options
+# at launch time. (In contrast to the regular attestation which only
+# happens after the VM was started). This feature also allows you
+# to populate the "ID_KEY_DIGEST" and "AUTHOR_KEY_DIGEST" fields of
+# the attestation report with the hash of two VM owner controlled public
+# keys
+# You can use the "idblock-generator" tool to create
+#

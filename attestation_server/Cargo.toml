@@ -12,12 +12,12 @@ name = "client"
 path = "src/bin/client/client_main.rs"
 
 [[bin]]
-name = "config-generator"
-path = "src/bin/config_generator/config_generator_main.rs"
-
-[[bin]]
 name = "idblock-generator"
 path = "src/bin/idblock_generator/idblock_generator_main.rs"
+
+[[bin]]
+name = "sev-feature-info"
+path = "src/bin/sev_feature_info/sev_feature_info_main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -35,3 +35,5 @@ snafu = "0.8.2"
 base64 = "0.22.0"
 bincode = "1.3.3"
 openssl = "0.10.64"
+toml = "0.8.12"
+hex-buffer-serde = "0.4.0"
