@@ -17,8 +17,7 @@ kernel_file = "path to kernel file that gets passed to QMEU"
 #Path to the initramdisk file that should be used for booting. Influences the launch digest in the attestation report
 initrd_file = "path to initramdisk file that gets passed to QEMU"
 #Kernel commandline parameters. Influences the launch digest in the attestation support
-# For debugging, you might want to use "console=ttyS0" to have a shell. Note however, that all information shown in this shell if copied to unecrytped video buffer memory
-#kernel_cmdline = "kernel commandline arguments, as passed to QEMU in the \"-append\"  arg"
+# For debugging, you might want to use "console=ttyS0" to have a shell. Note however, that all information shown in this shell is copied to unecrytped video buffer memory
 kernel_cmdline = ""
 
 # Information about security relevant configuration option that affect the

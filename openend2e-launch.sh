@@ -6,7 +6,6 @@
 HDA=""
 MEM="2048"
 SMP="1"
-VNC=""
 CONSOLE="serial"
 USE_VIRTIO="1"
 DISCARD="none"
@@ -15,10 +14,10 @@ CPU_MODEL="EPYC-v4"
 MONITOR_PATH=monitor
 QEMU_CONSOLE_LOG=`pwd`/stdout.log
 CERTS_PATH=
+
 # linked to cli flag
 ENABLE_ID_BLOCK=
 
-#hardcoded ID block data used when ENABLE_ID_BLOCK=1
 
 
 SEV="0"
@@ -33,6 +32,7 @@ if [ -z "$SEV_TOOLCHAIN_PATH" ];then
 fi
 
 UEFI_PATH="$SEV_TOOLCHAIN_PATH/share/qemu"
+DEFAULT_UEFI_PATH=$UEFI_PATH
 
 usage() {
 	echo "$0 [options]"
@@ -60,6 +60,7 @@ usage() {
 	echo " -id-auth           Path to file with 4096-byte, base64 encoded blob for the \"ID Authentication Information\" structure in SNP_LAUNCH_FINISH"
 	echo " -host-data         Path to file with 32-byte, base64 encoded blob for the \"HOST_DATA\" parameter in SNP_LAUNCH_FINISH"
 	echo " -policy            Guest Policy. 0x prefixed string. For SEV-SNP default is 0x30000 and 0xb0000 enables the debug API. For SEV-ES the default is 0x5 and 0x4 enables the debug API."
+	echo " -load-config PATH  Will load -bios,-smp,-kernel,-initrd,-append amd -policy from the VM config .toml file. You can still override this by passing the corresponding flag directly"
 	exit 1
 }
 
@@ -102,6 +103,18 @@ get_cbitpos() {
 }
 
 trap exit_from_int SIGINT
+
+#helper function to parse simple "key = value lines from a toml config file"
+# ARG1 name of the toml key
+# ARG2 path to toml file
+# RESULT stored in global var PARSE_RESULT
+PARSE_RESULT=""
+parse_value_for_key() {
+	key="$1"
+	file="$2"
+	# value=$(grep -Po "^\s*$key\s*=\s*(?:"\K[^"]*(?=")|\K[^"\s]+)" "$file")
+	PARSE_RESULT=$(grep -Po "^\s*$key\s*=\s*(?:\"\K[^\"]*(?=\")|\K[^\"\s]+)" "$file")
+}
 
 if [ `id -u` -ne 0 ]; then
 	echo "Must be run as root!"
@@ -178,12 +191,49 @@ while [ -n "$1" ]; do
 		-vm-config-file) VM_CONFIG_FILE="$2"
 			shift
 			;;
-		*) 		usage
+		-load-config) TOML_CONFIG="$2"
+			shift
+			;;
+ 		*) 		usage
 				;;
 	esac
 
 	shift
 done
+
+if [ -f "$TOML_CONFIG" ]; then
+	echo "Parsing config options from file"
+	if [ -z "$SMP" ]; then 
+		parse_value_for_key "vcpu_count" "$TOML_CONFIG"
+		SMP="$PARSE_RESULT"
+	fi
+
+	if [ "$DEFAULT_UEFI_PATH" = "$UEFI_PATH" ]; then
+		parse_value_for_key "ovmf_file" "$TOML_CONFIG"
+	  DIRECT_BOOT_OVMF="$PARSE_RESULT"
+	fi
+
+	if [ -z "$KERNEL_FILE" ]; then
+		parse_value_for_key "kernel_file" "$TOML_CONFIG"
+	  KERNEL_FILE="$PARSE_RESULT"
+	fi
+	
+	if [ -z "$INITRD_FILE" ]; then
+		parse_value_for_key "initrd_file" "$TOML_CONFIG"
+	  INITRD_FILE="$PARSE_RESULT"
+	fi
+
+	if [ -z "$APPEND" ]; then
+		parse_value_for_key "kernel_cmdline" "$TOML_CONFIG"
+	  APPEND="$PARSE_RESULT"
+	fi
+
+	if [ -z "$SEV_POLICY" ]; then
+		parse_value_for_key "guest_policy" "$TOML_CONFIG"
+	  SEV_POLICY="$PARSE_RESULT"
+	fi
+
+fi
 
 TMP="$SEV_TOOLCHAIN_PATH/bin/qemu-system-x86_64"
 QEMU_EXE="$(readlink -e $TMP)"
@@ -225,24 +275,27 @@ fi
 	[ -z "$GUEST_NAME" ] && GUEST_NAME="$(basename $TMP | sed -re 's|\.[^\.]+$||')"
 }
 
-TMP="$UEFI_PATH/OVMF_CODE.fd"
-UEFI_CODE="$(readlink -e $TMP)"
-[ -z "$UEFI_CODE" ] && {
-	echo "Can't locate UEFI code file [$TMP]"
-	usage
-}
 
-[ -e "./$GUEST_NAME.fd" ] || {
-	TMP="$UEFI_PATH/OVMF_VARS.fd"
-	UEFI_VARS="$(readlink -e $TMP)"
-	[ -z "$UEFI_VARS" ] && {
-		echo "Can't locate UEFI variable file [$TMP]"
+if [ -z "$DIRECT_BOOT_OVMF" ]; then
+	TMP="$UEFI_PATH/OVMF_CODE.fd"
+	UEFI_CODE="$(readlink -e $TMP)"
+	[ -z "$UEFI_CODE" ] && {
+		echo "Can't locate UEFI code file [$TMP]"
 		usage
 	}
 
-	run_cmd "cp $UEFI_VARS ./$GUEST_NAME.fd"
-}
-UEFI_VARS="$(readlink -e ./$GUEST_NAME.fd)"
+	[ -e "./$GUEST_NAME.fd" ] || {
+		TMP="$UEFI_PATH/OVMF_VARS.fd"
+		UEFI_VARS="$(readlink -e $TMP)"
+		[ -z "$UEFI_VARS" ] && {
+			echo "Can't locate UEFI variable file [$TMP]"
+			usage
+		}
+
+		run_cmd "cp $UEFI_VARS ./$GUEST_NAME.fd"
+	}
+	UEFI_VARS="$(readlink -e ./$GUEST_NAME.fd)"
+fi
 
 if [ "$ALLOW_DEBUG" = "1" ]; then
 	# This will dump all the VMCB on VM exit
@@ -284,9 +337,11 @@ add_opts "-no-reboot"
 #case 1: user provided kernel + initrd -> use OVMF with hash table support to measure
 #kernel and initrd hashes
 if [ ${KERNEL_FILE} ] && [ ${INITRD_FILE} ]; then
-	DIR_BOOT_OVMF_TMP="$UEFI_PATH/DIRECT_BOOT_OVMF.fd"
-	UEFI_CODE="$(readlink -e $DIR_BOOT_OVMF_TMP)"
-	add_opts "-drive if=pflash,format=raw,unit=0,file=${UEFI_CODE},readonly"
+		if [ -z "$DIRECT_BOOT_OVMF" ]; then
+			DIR_BOOT_OVMF_TMP="$UEFI_PATH/DIRECT_BOOT_OVMF.fd"
+			DIRECT_BOOT_OVMF="$(readlink -e $DIR_BOOT_OVMF_TMP)"
+		fi
+	add_opts "-drive if=pflash,format=raw,unit=0,file=${DIRECT_BOOT_OVMF},readonly"
 else # case 2:regular boot
 	add_opts "-drive if=pflash,format=raw,unit=0,file=${UEFI_CODE},readonly"
 	add_opts "-drive if=pflash,format=raw,unit=1,file=${UEFI_VARS}"

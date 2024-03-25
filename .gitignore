@@ -3,3 +3,6 @@ hacky-testdata
 compile_commands.json
 .cache/
 attestation_server/target
+AMDSEV/
+vm-kernel/
+build.env
