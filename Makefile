@@ -67,7 +67,7 @@ rootfs:
 	#Remove the container
 	podman rm tmp-nano-vm-rootfs
 
-$(BIN_DIR)/initramfs.cpio.gz: rootfs $(BIN_DIR)/init attestation-tools
+$(BIN_DIR)/initramfs.cpio.gz: rootfs  attestation-tools
 	#Copy additional elements into rootfs dir
 	cp ./init.sh $(ROOTFS_DIR)/init
 	#Copy program that does the attestation with the guest owner
