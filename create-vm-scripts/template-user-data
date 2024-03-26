@@ -1,0 +1,31 @@
+#cloud-config
+hostname: sevsnpvm
+fqdn: sevsnpvm.localdomain
+manage_etc_hosts: false
+
+ssh_pwauth: true
+disable_root: true
+
+users:
+  - name: <USER>
+    groups: sudo
+#Created via mkpasswd --method=SHA-512 --rounds=4096
+#Password is 123456
+    passwd: <PWDHASH>
+#allow password login
+    lock_passwd: false
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - <USER_PUBKEY>
+
+ssh_keys:
+#Don't change the next line, we use it as anchor to append the server private key
+#We can't use the <VAR> the private key spans multiple lines an replacing a variable with
+#multiple lines is hard. If you add a key by hand, make sure that all lines of the
+#key are indented with 4 whitespaces
+  ecdsa_private: |
+
+  ecdsa_public: <SERVER_PUBKEY>
+
+ssh:
+  emit_keys_to_console: false

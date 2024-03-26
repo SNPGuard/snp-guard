@@ -90,7 +90,7 @@ if [ "$(which docker)" = "" ];then
 	read -p "It looks like you don't have docker installed. Please visit https://docs.docker.com/engine/install/ubuntu/ to install it. Afterwards press enter to continue"
 fi
 echo "Installing dependencies"
-sudo apt install make podman pv
+sudo apt install make podman pv whois
 
 
 #set env var for make file

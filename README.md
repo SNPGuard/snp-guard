@@ -53,8 +53,8 @@ Assuming you are using Ubuntu
 TODO: integrate rust toolchain installation
 1) Build and instal all depdendencies with `./prepare-snp-dependencies.sh`
 2) Follow the [AMD manual](https://github.com/AMDESE/AMDSEV/tree/snp-latest) to configure your sytem for SEV-SNP. Skip the "Build" step as we already performed this in step 1
-3) Compile our tool with `make`
-4) (Optional) If you don't have an existing VM image, create one with XXX
+3) Compile our tool with `source build.env && make`
+4) (Optional) If you don't have an existing VM image, follow [Create new VM image](#optional-create-new-vm-image) to create one
 5) Convert your VM to use an encrypted disk with the XXX conversion script
 
 ### Run
@@ -85,6 +85,17 @@ root privileges to change the file ownership of the files in the initramfs to ro
 If you want to copy any additional files to the initramfs, you may set the `ROOTFS_EXTRA_FILES` env var to a whitespace separated list of files. The initramfs is placed in `./build/binaries/`. The binaries for the attestation process are in
 `./attestation_server/target/debug/`
 
+### Second Stage Code Image
+
+#### Optional: Create new VM image
+In this section we create a new ubuntu VM image, using the cloud image provided by ubuntu as well the cloud-init tool to automate the deployment
+
+1) `cd create-vm-scripts`
+2) Run `./create-new-vm.sh -out-vm-image sevsnptest.qcow2` to create a new disk with an uncofigured ubuntu as well as a cloud-init config blob. See "-help" for optional paramters
+3) To apply the configuration, you need to boot the VM once using `sudo qemu-system-x86_64 -enable-kvm -m 1024 -net nic -net user -hda ./sevsnptest.qcow2 -hdb ./config-blob.img  -nographic`. Check that you can login with the user and password that you configured. The config is applied permanently to `sevsnptest.qcow2`, i.e. you can use the image standalone afterwards.
+
+#### Encrypt the VM's disk
+TODO: use scripts to convert
 
 ## References
 [1] https://github.com/AMDESE/AMDSEV/tree/snp-latest
