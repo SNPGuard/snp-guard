@@ -143,5 +143,5 @@ If the remote attestation succeeds, you should be able to SSH into your VM
 on localhost port 2222 shorty afterwards.
 
 ## References
-[1] https://github.com/AMDESE/AMDSEV/tree/snp-latest
-[2] https://www.youtube.com/watch?v=4wZnl0njxm8
+- [1] https://github.com/AMDESE/AMDSEV/tree/snp-latest
+- [2] https://www.youtube.com/watch?v=4wZnl0njxm8
