@@ -80,7 +80,7 @@ fi #if AMDPATH not set
 
 #Copy and extract vm kernel .deb file
 echo "Locating guest kernel"
-GUEST_DEB=$(find "${AMDPATH}/linux" -maxdepth 1 -name "linux-image*-snp-guest*")
+GUEST_DEB=$(find "${AMDPATH}/linux" -maxdepth 1 -name "linux-image*-snp-guest*.deb" | grep -v dbg)
 if [ -z "$GUEST_DEB" ]; then
   echo "Unable to find .deb package for guest kernel. Did something go wrong with the build?"
   exit 1
@@ -109,15 +109,16 @@ echo "Creating .env file at $OUT_ENV_FILE"
 echo "export KERNEL_MODULES_DIR=$(pwd)/vm-kernel/lib/modules" >> "$OUT_ENV_FILE"
 echo "export SEV_TOOLCHAIN_PATH=${AMDPATH}/usr/local/" >> "$OUT_ENV_FILE"
 
-echo "Creating VM config file"
-cp ./attestation_server/examples/vm-config.toml  ./build/binaries/default-vm-config.toml
+OUT_CONFIG_PATH="./default-vm-config.toml"
+echo "Creating default VM config file at $OUT_CONFIG_PATH"
+cp ./attestation_server/examples/vm-config.toml  "$OUT_CONFIG_PATH"
 
 #ovmf_file = "path to OVMF.fd file used by QEMU"
 #kernel_file = "path to kernel file that gets passed to QMEU"
 #initrd_file = "path to initramdisk file that gets passed to QEMU"
 OVMF_PATH=${AMDPATH}/usr/local/share/qemu/DIRECT_BOOT_OVMF.fd
-sed -i "\@ovmf_file@c ovmf_file = \"${OVMF_PATH}\"" ./build/binaries/default-vm-config.toml
+sed -i "\@ovmf_file@c ovmf_file = \"${OVMF_PATH}\"" "$OUT_CONFIG_PATH"
 KERNEL_PATH="$(pwd)/$(ls ./vm-kernel/boot/vmlinuz*)"
-sed -i "\@kernel_file@c kernel_file = \"${KERNEL_PATH}\"" ./build/binaries/default-vm-config.toml
+sed -i "\@kernel_file@c kernel_file = \"${KERNEL_PATH}\"" "$OUT_CONFIG_PATH"
 INITRD_FILE="./build/binaries/initramfs.cpio.gz"
-sed -i "\@initrd_file@c initrd_file = \"${INITRD_FILE}\"" ./build/binaries/default-vm-config.toml
+sed -i "\@initrd_file@c initrd_file = \"${INITRD_FILE}\"" "$OUT_CONFIG_PATH"
