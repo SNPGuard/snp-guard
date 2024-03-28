@@ -42,8 +42,8 @@ if [ -z "$AMDPATH" ]; then
 
 	#The build depedency installation currently only works for Ubuntu
 	if [ "$(lsb_release -si)" = "Ubuntu" ]; then
-		DEB_REPOS=$(grep -E "^\s*deb" /etc/apt/sources.list| wc -l)
-		DEB_SRC_REPOS=$(grep -E "^\s*deb-src" /etc/apt/sources.list| wc -l)
+		DEB_REPOS=$(grep -E "^\s*deb " /etc/apt/sources.list| wc -l)
+		DEB_SRC_REPOS=$(grep -E "^\s*deb-src " /etc/apt/sources.list| wc -l)
 		if [ $DEB_SRC_REPOS -ne $DEB_REPOS ]; then
 			TMP_APT=$(mktemp)
 			sed -e '/deb-src/ s/^[[:space:]]*#*//' /etc/apt/sources.list > "$TMP_APT"
