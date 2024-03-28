@@ -12,7 +12,7 @@ usage() {
 confirm_execution() {
     read -p "Are you sure you want to execute '$*'? (y/n): " choice
     case "$choice" in 
-      y|Y ) $@;;
+      y|Y ) eval $* ;;
       n|N ) exit ;;
       * ) echo "Invalid choice. Please enter 'y' or 'n'.";;
     esac
