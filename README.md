@@ -2,10 +2,9 @@
 
 This repository demonstrates an end-to-end secured setup for a SEV-SNP VM.
 To achieve this, we build on the ideas from [2] and use the attestation
-process of SEV-SNP in combination with software tools like full disk encryption
+process of SEV-SNP in combination with software tools like full authenticated disk encryption
 to provide a secure SEV setup. While the official AMD repo [1] explains how to
 set up a SEV-SNP VM, it does not cover these topics at all.
-
 
 Currently, this repo is mainly intended as a technical demo and NOT intended
 to be used in any kind of production scenario.
@@ -13,24 +12,47 @@ to be used in any kind of production scenario.
 We explicitly decided to boot into a feature rich initramfs to enable easy tweaking of the boot
 process to explore novel ideas.
 
+## TLDR
+Assuming you are using Ubuntu
+
+### Build
+
+1) Build and install all depdendencies with `./prepare-snp-dependencies.sh`
+2) Follow the [AMD manual](https://github.com/AMDESE/AMDSEV/tree/snp-latest) to configure your system for SEV-SNP. Skip the "Build" step as we already performed this in step 1
+3) Compile our tool with `source build.env && make`
+4) (Optional) If you don't have an existing VM image, follow [Create new VM image](#optional-create-new-vm-image) to create one
+5) Convert your VM to use an encrypted disk with the `./convert-vm/setup_luks.sh -in <your disk .qcow2>`  conversion script. Check [the long version](#run-1) for the other workflows.
+
+### Run
+1) `source build.env`
+2) `sudo -E ./openend2e-launch.sh -sev-snp -load-config ./build/binaries/default-vm-config.toml -hda <your disk .qcow2>`
+3) Wait a few seconds, then `./attestation_server/target/debug/client --disk-key <disk encryption pw> --vm-definition ./build/binaries/default-vm-config.toml`
+4) Wait a few seconds, then SSH into your VM on port 2222 on localhost
+
+To terminate QEMU, use Ctrl+A, Ctrl+]
+Per default, the VM will not generate any output after the UEFI stage.
+This is because interacting via the serial console transfers data unenrypted and opens an attack angle for the hypervisor.
+If you want output for debug purposes, edit `/build/binaries/default-vm-config.toml` and change `kernel_cmdline = ""` to `kernel_cmdline = "console=ttyS0"` 
+
 ## High Level Workflow
 Our solution consists of two stages.
 
 The first stage consists of a small, publicly known code image that does not
 contain any secrets. 
-The second stage is a full Linux VM that is stored on an encrypted disk image.
-Thus is may contain arbitrary secret data like an OpenSSH server key.
+The second stage contains the workload that the user wants to execute.
+Depending on the use case the second stage is either only integrity protected using dm-verity or uses
+full authenticated disk encryption using dm-crypt.
+The latter enables you to easily use a regular Linux VM, for the second stage.
 
 We create and boot a new VM, using the small first stage code image and use the SEV-SNP isolation and attestation features to ensure its integrity.
-After booting, the first stage proves its authenticity to the VM
+If the second stage is only integrity protected, the boot process can resume uninterrupted and the VM owner perform the remote attestation at any time after boot up.
+We use *switch_root* to hand over control from the first to the second stage, calling the `/sbin/init` in the second stage as the entry point.
+If the second stage is encrypted, the first stage proves its authenticity to the VM
 owner, using remote attestation. Afterwards, the VM owner can build an encrypted
 channel to send secrets into the VM.
 We use this to transmit the disk encryption key required to unlock the disk image
 for the second stage.
-After receiving the key, the first stage unlocks and mounts the encrypted disk
-and uses *switch_root* command to jump into the new image. Using this process, we
-can start the regular `/sbin/init` binary of the second stage to ensure proper startup
-of all configured services
+After receiving the key, the first stage unlocks and mounts the encrypted disk before using the *switch_root* approach to hand over control.
 
 ### Limitations and Caveats
 Any changes of the second stage Linux VM to its /boot partition are not reflected upon
@@ -46,29 +68,9 @@ Implementing this is on our roadmap for a future release. The main disadvantage 
 the limited Grub programming environment from Grub makes it much harder to add experimental tweaks to the
 boot process.
 
-## TLDR
-Assuming you are using Ubuntu
-
-### Build
-TODO: integrate rust toolchain installation
-1) Build and instal all depdendencies with `./prepare-snp-dependencies.sh`
-2) Follow the [AMD manual](https://github.com/AMDESE/AMDSEV/tree/snp-latest) to configure your sytem for SEV-SNP. Skip the "Build" step as we already performed this in step 1
-3) Compile our tool with `source build.env && make`
-4) (Optional) If you don't have an existing VM image, follow [Create new VM image](#optional-create-new-vm-image) to create one
-5) Convert your VM to use an encrypted disk with the XXX conversion script
-
-### Run
-1) `source build.env`
-2) `sudo -E bash -x ./openend2e-launch.sh -sev-snp -load-config ./build/binaries/default-vm-config.toml -hda <your disk .qcow2>`
-3) Wait a few seconds, then `client --disk-key <disk encryption pw> --vm-definition ./build/binaries/default-vm-config.toml`
-4) SSH into your VM on via  `localhost:2222`
-
 
 ## Build
-Dependencies:
-- Working docker setup
-- Working rust toolchain
-- Linux tools: `make`, `podman`, `pv`
+This is the "long version" of the build process
 
 ### Prepare for SEV-SNP
 1) Build and instal all depdendencies with `./prepare-snp-dependencies.sh`
@@ -76,10 +78,9 @@ Dependencies:
 
 
 ### First Stage Code Image
-For the first stage, we require the OVMF UEFI implementation, a Linux kernel and a
-custom initramfs.
+For the first stage, we require the OVMF UEFI implementation, a Linux kernel and a custom initramfs.
 
-1) Extract the content of the guest kernel *deb* package from the `linux` subfolder in the AMD repo into a separate folder using `dpkg -x <path to .deb> <path to folder>`. Let `GUEST_DEB_CONTENT` be that folder.
+1) Extract the content of the guest kernel *deb* package from the `linux` subfolder in the AMD repo into a separate folder using `dpkg -x <path to .deb> <path to folder>`. You can of course also use any other kernel that can run a SEV-SNP guest. Let `GUEST_DEB_CONTENT` be that folder.
 2) Run `KERNEL_MODULES_DIR=$GUEST_DEB_CONTENT make` to build the initramfs and the binaries used in the attestation process. This script requires
 root privileges to change the file ownership of the files in the initramfs to root.
 If you want to copy any additional files to the initramfs, you may set the `ROOTFS_EXTRA_FILES` env var to a whitespace separated list of files. The initramfs is placed in `./build/binaries/`. The binaries for the attestation process are in
@@ -90,12 +91,57 @@ If you want to copy any additional files to the initramfs, you may set the `ROOT
 #### Optional: Create new VM image
 In this section we create a new ubuntu VM image, using the cloud image provided by ubuntu as well the cloud-init tool to automate the deployment
 
-1) `cd create-vm-scripts`
-2) Run `./create-new-vm.sh -out-vm-image sevsnptest.qcow2` to create a new disk with an uncofigured ubuntu as well as a cloud-init config blob. See "-help" for optional paramters
-3) To apply the configuration, you need to boot the VM once using `sudo qemu-system-x86_64 -enable-kvm -m 1024 -net nic -net user -hda ./sevsnptest.qcow2 -hdb ./config-blob.img  -nographic`. Check that you can login with the user and password that you configured. The config is applied permanently to `sevsnptest.qcow2`, i.e. you can use the image standalone afterwards.
+1) `mkdir -p vm-data &&  ./create-vm-scripts/create-new-vm.sh -out-vm-image ./vm-data/sevsnptest.qcow2`  to create a new disk with an uncofigured ubuntu as well as a cloud-init config blob. See "-help" for optional paramters
+3) To apply the configuration, you need to boot the VM once using `sudo -E ./openend2e-launch.sh -hda ./vm-data/sevsnptest.qcow2 -hdb ./vm-data/config-blob.img -append console=ttyS0`. Check that you can login with the user and password that you configured. The config is applied permanently to the image, i.e. you can use the image standalone afterwards.
 
-#### Encrypt the VM's disk
-TODO: use scripts to convert
+#### Optional Generate an ID Block and an ID Auth block
+The ID block and an ID authentication information structure allow you to pass some user defined data to describe/identify the
+VM, as well as the public parts of the ID key and the author key. All of this information will be reflected
+in the attestation report. In addition, the ID block will trigger a check of the launch digest and the guest policy before entering the VM.
+Otherwise, both would only be checked at runtime, during the attestation handshake described later in this document.
+
+Use the following command to generate an ID block and id auth block files for usage with QEMU:
+`./attestation_server/target/debug/idblock-generator --vm-definition vm-config.toml --id-key-path id_key.pem --auth-key-path author_key.pem`
+
+Both ID key and author key are user defined keys. The ID key is used to sign the ID block and the author key is used to sign the ID key.
+This enables you to use a different ID key for each VM while reflecting that all VMs belong to the same VM owner/author.
+Bot keys need to be in the PKCS8 PEM format. You can generate them with
+`openssl ecparam -name secp384r1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out private_key.pem`
+The second part is needed as there are two sub variants for PEM and the default one used
+by OpenSSL cannot be parsed by the library that we used (apparently the PKCS8 one is also the
+better variant).
+
+
+#### Integrity+Encryption Workflow
+Use `./convert-vm/setup_luks.sh -in ./vm-data/sevsnptest.qcow2` to convert the disk image
+to an encrypted disk image
+
+#### Integrity-only Workflow
+TODO
+
+## Run
+To use the `openend2e-launch.sh` script in the following steps, set the 
+`SEV_TOOLCHAIN_PATH ` env var to point to the `usr/local` sub folder of the official AMD repo.
+If you used the `./prepare-snp-dependencies.sh` script, use `source build.env` to use the autogenerated env file.
+
+The script will forward the ports 22 and 80 from the VM to localhost:2222 and localhost:8080 on the host system. The server for the attestation is listening
+on port 80 inside the VM. If you want to perform the remote attestation from a different machine edit the following line in `openend2e-launch.sh` to forward port 80 to a remotely reachable IP of you choice.
+`add_opts " -netdev user,id=vmnic,hostfwd=tcp:127.0.0.1:2222-:22,hostfwd=tcp:127.0.0.1:8080-:80"` 
+
+Use the following command to start the VM
+`sudo -E ./openend2e-launch.sh -sev-snp -load-config ./build/binaries/default-vm-config.toml -hda <your disk .qcow2>`
+If you want to use the optional ID block, also add the following parameters
+`-id-block <path to id-block.base64> -id-auth <path to auth-block.base64>`
+
+Wait until the scrolling text stops.
+
+Next, on the same system as the VM is running, use the following command to perform the attestation process
+`./attestation_server/target/debug/client --disk-key <disk encryption pw> --vm-definition <vm config file>`
+If you used the ID block during launch, you might also add the `--id-block-path <path to id-block.base64>` and `--author-block-path <path to auth-block.base64>` parameters, to verify the information from these blocks that are visible in the attestation report.
+See `--help` for additional optional parameters. 
+If the remote attestation succeeds, you should be able to SSH into your VM
+on localhost port 2222 shorty afterwards.
 
 ## References
 [1] https://github.com/AMDESE/AMDSEV/tree/snp-latest
+[2] https://www.youtube.com/watch?v=4wZnl0njxm8

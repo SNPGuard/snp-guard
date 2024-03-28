@@ -4,6 +4,7 @@
 # user changeable parameters
 #
 HDA=""
+HDB=""
 MEM="2048"
 SMP="1"
 CONSOLE="serial"
@@ -43,6 +44,7 @@ usage() {
 	echo " -enable-discard    for SNP, discard memory after conversion. (worse boot-time performance, but less memory usage)"
 	echo " -bios              the bios to use (default $UEFI_PATH)"
 	echo " -hda PATH          hard disk file (default $HDA)"
+	echo " -hdb PATH          second hard disk file. Used for cloud-init config blob"
 	echo " -mem MEM           guest memory size in MB (default $MEM)"
 	echo " -smp NCPUS         number of virtual cpus (default $SMP)"
 	echo " -cpu CPU_MODEL     QEMU CPU model/type to use (default $CPU_MODEL)."
@@ -136,6 +138,9 @@ while [ -n "$1" ]; do
 		-sev)		SEV="1"
 				;;
 		-hda) 		HDA="$2"
+				shift
+				;;
+		-hdb) 		HDB="$2"
 				shift
 				;;
 		-mem)  		MEM="$2"
@@ -361,24 +366,28 @@ if [ "$USE_DEFAULT_NETWORK" = "1" ]; then
     add_opts " -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile="
 fi
 
-# If harddisk file is specified then add the HDD drive
-if [ -n "${HDA}" ]; then
-	if [ "$USE_VIRTIO" = "1" ]; then
-		if [[ ${HDA} = *"qcow2" ]]; then
-			add_opts "-drive file=${HDA},if=none,id=disk0,format=qcow2"
+DISKS=( "$HDA" "$HDB" )
+for ((i = 0; i < ${#DISKS[@]}; i++)); do
+	DISK="${DISKS[i]}"
+	#DISK might be "" if the clif flag was not set
+	if [ -n "$DISK" ]; then
+		if [ "$USE_VIRTIO" = "1" ]; then
+			if [[ ${DISK} = *"qcow2" ]]; then
+				add_opts "-drive file=${DISK},if=none,id=disk${i},format=qcow2"
+			else
+				add_opts "-drive file=${DISK},if=none,id=disk${i},format=raw"
+			fi
+			add_opts "-device virtio-scsi-pci,id=scsi${i},disable-legacy=on,iommu_platform=true"
+			add_opts "-device scsi-hd,drive=disk${i},bootindex=$((i+1))"
 		else
-			add_opts "-drive file=${HDA},if=none,id=disk0,format=raw"
-		fi
-		add_opts "-device virtio-scsi-pci,id=scsi0,disable-legacy=on,iommu_platform=true"
-		add_opts "-device scsi-hd,drive=disk0"
-	else
-		if [[ ${HDA} = *"qcow2" ]]; then
-			add_opts "-drive file=${HDA},format=qcow2"
-		else
-			add_opts "-drive file=${HDA},format=raw"
+			if [[ ${DISK} = *"qcow2" ]]; then
+				add_opts "-drive file=${DISK},format=qcow2"
+			else
+				add_opts "-drive file=${DISK},format=raw"
+			fi
 		fi
 	fi
-fi
+done
 
 # If this is SEV guest then add the encryption device objects to enable support
 if [ ${SEV} = "1" ]; then

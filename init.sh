@@ -1,6 +1,11 @@
 #!/bin/sh
 
-#This is the more redable replacement for the init.c file
+set -e 
+
+#This is the init binary/script for the first stage
+
+#Static config variable for the root filesytem
+ROOT_FS_DEV=/dev/sda
 
 mkdir -p /dev
 mount -t devtmpfs /dev /dev
@@ -17,22 +22,15 @@ mount -t devpts /dev/pts /dev/pts
 
 #default launch config for sev uses virto as device driver
 #we need this module to detect the disk supplied with "-hda"
-insmod ./virtio_scsi.ko
+modprobe virtio_scsi
 
-#tsm.ko is depdendency for sev-guest.ko
-insmod ./tsm.ko
 #kernel module for accessing the PSP from the guest
 #used for getting the attestation report
-insmod ./sev-guest.ko
+modprobe sev-guest
 
 
-#mount encrypted disk
-insmod ./dm-crypt.ko
-
-# load kernel module for ethernet support
-insmod ./failover.ko
-insmod ./net_failover.ko
-insmod ./virtio_net.ko
+#kernel module for networking
+modprobe virtio_net
 
 # assign IP address
 dhclient
@@ -44,19 +42,20 @@ echo "IP Data: $(ip addr)"
 PW=$(cat ./disk_key.txt)
 shred -u ./disk_key.txt
 echo "Disk key is ${PW}"
-echo ${PW} | cryptsetup luksOpen /dev/sda3 sda3_crypt
+ROOT_FS_CRYPTDEV="$(basename $ROOT_FS_DEV)_crypt"
+echo "ROOT_FS_CRYPTDEV = $ROOT_FS_CRYPTDEV"
+echo "${PW}" | cryptsetup luksOpen "$ROOT_FS_DEV" "$ROOT_FS_CRYPTDEV"
  
 #activate lvm2 (used by ubuntu as default when using crypto disk)
-vgscan --mknodes
-vgchange -ay
-vgscan --mknodes
+# vgscan --mknodes
+# vgchange -ay
+# vgscan --mknodes
+# mount /dev/mapper/ubuntu--vg-ubuntu--lv /mnt
 
-mount /dev/mapper/ubuntu--vg-ubuntu--lv /mnt
+mount /dev/mapper/"$ROOT_FS_CRYPTDEV" /mnt
 
 mount --move /proc /mnt/proc
 mount --move /sys /mnt/sys
 mount --move /dev /mnt/dev
-
-
 exec switch_root /mnt/ /sbin/init
 # exec /bin/bash

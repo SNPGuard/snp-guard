@@ -26,7 +26,6 @@ endif
 # - enc_disk_full_vm : unlock encrypted disk and switch root into the unlocked disk calling init
 USE_CASE ?= enc_disk_full_vm
 ifeq ($(USE_CASE),enc_disk_full_vm)
-KERNEL_MODULES = "virtio_scsi.ko sev-guest.ko tsm.ko dm-crypt.ko virtio_net.ko net_failover.ko failover.ko"
 USE_CASE_VALID = 1
 endif
 
@@ -72,8 +71,8 @@ $(BIN_DIR)/initramfs.cpio.gz: rootfs  attestation-tools
 	cp ./init.sh $(ROOTFS_DIR)/init
 	#Copy program that does the attestation with the guest owner
 	cp ./attestation_server/target/debug/server $(ROOTFS_DIR)/server
-	#copy kernel modules required rot the selected use case
-	./copy-kernel-modules.sh $(ROOTFS_DIR) $(KERNEL_MODULES) $(KERNEL_MODULES_DIR)
+	#copy kernel modules to initramfs. 
+	cp -r ./vm-kernel/lib/modules $(ROOTFS_DIR)/usr/lib/
 ifdef ROOTFS_EXTRA_FILES
 	#copy additional user defined files
 	./copy-additional-deps.sh $(ROOTFS_DIR) "$(ROOTFS_EXTRA_FILES)"

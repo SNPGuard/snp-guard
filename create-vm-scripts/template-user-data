@@ -10,7 +10,6 @@ users:
   - name: <USER>
     groups: sudo
 #Created via mkpasswd --method=SHA-512 --rounds=4096
-#Password is 123456
     passwd: <PWDHASH>
 #allow password login
     lock_passwd: false
@@ -29,3 +28,14 @@ ssh_keys:
 
 ssh:
   emit_keys_to_console: false
+
+#After converting to VM for our tool, we only want to use the root partition
+#This change does not affect the initial boot (in which the config is applied)
+write_files:
+  - path: /etc/fstab
+    content: |
+      # <file system>             <mount point>   <type>  <options>       <dump>  <pass>
+      /dev/sda1   /               ext4    defaults        0       1
+  - path: /etc/ssh/sshd_config.d/only_use_ecdsa.conf
+    content: |
+      HostKey /etc/ssh/ssh_host_ecdsa_key

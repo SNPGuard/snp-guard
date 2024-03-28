@@ -9,6 +9,14 @@ usage() {
   exit
 }
 
+confirm_execution() {
+    read -p "Are you sure you want to execute '$*'? (y/n): " choice
+    case "$choice" in 
+      y|Y ) $@;;
+      n|N ) exit ;;
+      * ) echo "Invalid choice. Please enter 'y' or 'n'.";;
+    esac
+}
 
 while [ -n "$1" ]; do
 	case "$1" in
@@ -42,16 +50,11 @@ if [ -z "$AMDPATH" ]; then
 
 			echo "It looks you have don't have the deb-src repos enabled. We need them to lookup the build dependencies."
 			#!/bin/bash
-			read -p "Review the revised sources.list file at ${TMP_APT} . Should we update /etc/apt/sources.list accordingly? This requires root. (yes/no): " confirmation
-			# Convert input to lowercase for case-insensitive comparison
-			confirmation="${confirmation,,}"
-			# Check if the user confirmed
-			if [[ "$confirmation" == "yes" ]]; then
-					sudo cp "$TMP_APT" /etc/apt/sources.list
-					sudo apt install build-essential ninja-build python-is-python3 flex bison libncurses-dev gawk openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm
-					sudo apt build-dep ovmf qemu-system-x86 linux
-			fi # if confirmation
-	fi #if deb-src not enabled
+			echo "Review the revised sources.list file at ${TMP_APT}"
+			confirm_execution "sudo cp "$TMP_APT" /etc/apt/sources.list"
+		fi #if deb-src not enabled
+		echo "Installing build dependencies for kernel, OVMF and QEMU"
+		confirm_execution "sudo apt update && sudo apt install build-essential ninja-build python-is-python3 flex bison libncurses-dev gawk openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf llvm && sudo apt build-dep ovmf qemu-system-x86 linux"
   AMDPATH="$(pwd)/AMDSEV"
   echo "Cloning AMDSEV repo to $AMDPATH..."
   git clone https://github.com/AMDESE/AMDSEV.git "$AMDPATH"
@@ -68,7 +71,7 @@ fi #if on ubuntu
     echo "Building AMDSEV Repo. This might take a while"
     ./build.sh
 	echo "Installing KVM config"
-	sudo cp kvm.conf /etc/modprobe.d/
+	confirm_execution "sudo cp kvm.conf /etc/modprobe.d/"
   popd
 else #AMDPATH is set
   echo "Skipping cloning and building the AMD repo"
@@ -86,11 +89,19 @@ mkdir -p vm-kernel
 cp "$GUEST_DEB" vm-kernel/
 dpkg -x vm-kernel/*.deb vm-kernel/
 
+
+# Check for other build dependencies
 if [ "$(which docker)" = "" ];then
 	read -p "It looks like you don't have docker installed. Please visit https://docs.docker.com/engine/install/ubuntu/ to install it. Afterwards press enter to continue"
 fi
-echo "Installing dependencies"
-sudo apt install make podman pv whois
+if [ "$(which cargo)" = "" ]; then
+	echo "Rust toolchain not found. Going to install it"
+	confirm_execution "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+	source ~/.bashrc
+	source ~/.profile
+fi
+echo "Installing dependencies for our tool"
+confirm_execution "sudo apt install make podman pv whois"
 
 
 #set env var for make file

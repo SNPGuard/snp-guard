@@ -6,17 +6,21 @@
 set -e 
 
 
-BASE_DISK="jammy-server-base.qcow2"
-NEW_VM=$1
+BASE_DISK="/tmp/jammy-server-base.qcow2"
+NEW_VM=
+#size of the qcow2 disk image in GB
+SIZE=20
 OWNER_PUBKEY_PATH=""
 #Path to private key. public key is expected to be in the same directory, using the .pub extension
 SERVER_PRIVKEY_PATH=""
 SERVER_PUBKEY_PATH=""
 
 usage() {
+  echo "Usage:"
   echo "$0 [options]"
-  echo "-out-vm-image PATH.qcow    [Mandatory] Output path for the VM image. Must end in .qcow2"
-  echo "-owner-pubkey PATH         [Optional]  Path to SSH public key that gets added to authorized keys. If not specified, we generate a new keypair"
+  echo "-out-vm-image PATH.qcow2    [Mandatory] Output path for the VM image. Must end in .qcow2"
+  echo "-size INTEGER               [Optional]  Size for the qcow2 disk image in GB. Defaults to 20"
+  echo "-owner-pubkey PATH          [Optional]  Path to SSH public key that gets added to authorized keys. If not specified, we generate a new keypair"
   echo "-server-privkey PATH       [Optional]  Path to SSH private key that is used for the OpenSSH server. If not specified, we generate a new keypair"
 }
 
@@ -34,6 +38,10 @@ while [ -n "$1" ]; do
       SERVER_PRIVKEY_PATH="${2}.pub"
       shift
       ;;
+    -size)
+      SIZE="$2"
+      shift
+      ;;
     *)
       usage
       exit
@@ -42,6 +50,11 @@ while [ -n "$1" ]; do
   shift
 done
 
+if [ -z "$NEW_VM" ]; then
+  echo "-out-vm-image is a mandatory parameter"
+  usage
+  exit 1
+fi
 
 
 #Download base image
@@ -52,19 +65,19 @@ fi
 
 #Create a copy with a larger disk. Note that qcow2 is lazy allocated, i.e. this
 #does not produce a 20G file
-qemu-img create -f qcow2 -F qcow2 -b "$BASE_DISK" "$NEW_VM" 20G
+qemu-img create -f qcow2 -F qcow2 -b "$BASE_DISK" "$NEW_VM" "${SIZE}G"
 
 #If no pubkeys where specified, generate them
 if [ -z "$OWNER_PUBKEY_PATH" ]; then
-  DEFAULT_PATH="./vm-owner-ssh"
-  echo "No owner public key provided. Generating a new one at $DEFAULT_PATH"
+  DEFAULT_PATH="$(dirname $NEW_VM)/ssh-key-vm-owner"
+  echo "No owner public ssh key provided. Generating a new keypair at $DEFAULT_PATH"
   ssh-keygen -t ed25519 -N "" -f "$DEFAULT_PATH"
   OWNER_PUBKEY_PATH="${DEFAULT_PATH}.pub"
 fi
 
 if [ -z "$SERVER_PRIVKEY_PATH" ]; then
-  DEFAULT_PATH="./sevsnp-vm-ssh"
-  echo "No owner public key provided. Generating a new one at $DEFAULT_PATH"
+  DEFAULT_PATH="$(dirname $NEW_VM)/ssh-server-key-vm"
+  echo "No server ssh key provided. Generating a new keypair at $DEFAULT_PATH"
   ssh-keygen -t ecdsa -N "" -f "$DEFAULT_PATH"
   SERVER_PRIVKEY_PATH="$DEFAULT_PATH"
   SERVER_PUBKEY_PATH="${DEFAULT_PATH}.pub"
@@ -80,7 +93,8 @@ PWHASH=$(mkpasswd --method=SHA-512 --rounds=4096)
 
 #Create cloud-init "user-data" config based on template
 echo "Creating config file"
-cp ./template-user-data user-data
+#$0 gives path to script itself
+cp "$(dirname $0)/template-user-data" user-data
 sed -i "s#<USER>#$USERNAME#g" user-data
 sed -i "s#<PWDHASH>#$PWHASH#g" user-data
 USER_PUBKEY=$(cat "$OWNER_PUBKEY_PATH")
@@ -100,10 +114,11 @@ rm $TMP
 SERVER_PUBKEY=$(cat "$SERVER_PUBKEY_PATH")
 sed -i "s#<SERVER_PUBKEY>#$SERVER_PUBKEY#g" user-data
 
-echo "Writing config blow to config-blob.img"
+OUT_CFG_BLOB="$(dirname $NEW_VM)/config-blob.img"
+echo "Writing config blow to $OUT_CFG_BLOB"
 touch meta-data
 touch network-config
 genisoimage \
-    -output config-blob.img \
+    -output "$OUT_CFG_BLOB" \
     -volid cidata -rational-rock -joliet \
     user-data meta-data network-config
