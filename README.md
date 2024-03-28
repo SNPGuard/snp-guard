@@ -25,14 +25,14 @@ Assuming you are using Ubuntu
 
 ### Run
 1) `source build.env`
-2) `sudo -E ./openend2e-launch.sh -sev-snp -load-config ./build/binaries/default-vm-config.toml -hda <your disk .qcow2>`
-3) Wait a few seconds, then `./attestation_server/target/debug/client --disk-key <disk encryption pw> --vm-definition ./build/binaries/default-vm-config.toml`
+2) `sudo -E ./openend2e-launch.sh -sev-snp -load-config .default-vm-config.toml -hda <your disk .qcow2>`
+3) Wait a few seconds, then `./attestation_server/target/debug/client --disk-key <disk encryption pw> --vm-definition default-vm-config.toml`
 4) Wait a few seconds, then SSH into your VM on port 2222 on localhost
 
 To terminate QEMU, use Ctrl+A, Ctrl+]
 Per default, the VM will not generate any output after the UEFI stage.
 This is because interacting via the serial console transfers data unenrypted and opens an attack angle for the hypervisor.
-If you want output for debug purposes, edit `/build/binaries/default-vm-config.toml` and change `kernel_cmdline = ""` to `kernel_cmdline = "console=ttyS0"` 
+If you want output for debug purposes, edit `default-vm-config.toml` and change `kernel_cmdline = ""` to `kernel_cmdline = "console=ttyS0"` 
 
 ## High Level Workflow
 Our solution consists of two stages.
@@ -129,7 +129,7 @@ on port 80 inside the VM. If you want to perform the remote attestation from a d
 `add_opts " -netdev user,id=vmnic,hostfwd=tcp:127.0.0.1:2222-:22,hostfwd=tcp:127.0.0.1:8080-:80"` 
 
 Use the following command to start the VM
-`sudo -E ./openend2e-launch.sh -sev-snp -load-config ./build/binaries/default-vm-config.toml -hda <your disk .qcow2>`
+`sudo -E ./openend2e-launch.sh -sev-snp -load-config default-vm-config.toml -hda <your disk .qcow2>`
 If you want to use the optional ID block, also add the following parameters
 `-id-block <path to id-block.base64> -id-auth <path to auth-block.base64>`
 
