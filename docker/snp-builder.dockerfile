@@ -40,7 +40,9 @@ RUN apt update && \
 # clone repository
 RUN git clone https://github.com/AMDESE/AMDSEV.git --branch snp-latest --depth 1
 
-# TODO patch repository to build custom OVMF
+# patch repository to build custom OVMF
+COPY 0001-build-direct-boot-ovmf.patch ovmf.patch
+RUN cd AMDSEV && git apply ../ovmf.patch
 
 # run build command
 WORKDIR /usr/src/app/AMDSEV
