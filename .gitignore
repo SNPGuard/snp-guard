@@ -6,3 +6,4 @@ attestation_server/target
 AMDSEV/
 vm-kernel/
 build.env
+snp-release*

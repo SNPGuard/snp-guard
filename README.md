@@ -1,16 +1,132 @@
 # openend2e-sevsnp
 
-This repository demonstrates an end-to-end secured setup for a SEV-SNP VM.
-To achieve this, we build on the ideas from [2] and use the attestation
-process of SEV-SNP in combination with software tools like full authenticated disk encryption
-to provide a secure SEV setup. While the official AMD repo [1] explains how to
-set up a SEV-SNP VM, it does not cover these topics at all.
+This repository demonstrates an end-to-end secured setup for a SEV-SNP VM. To
+achieve this, we build on the ideas from [2] and use the attestation process of
+SEV-SNP in combination with software tools like full authenticated disk
+encryption to provide a secure SEV setup. While the official AMD repo [1]
+explains how to set up a SEV-SNP VM, it does not cover these topics at all.
 
-Currently, this repo is mainly intended as a technical demo and NOT intended
-to be used in any kind of production scenario.
+Currently, this repo is mainly intended as a technical demo and NOT intended to
+be used in any kind of production scenario.
 
-We explicitly decided to boot into a feature rich initramfs to enable easy tweaking of the boot
-process to explore novel ideas.
+We explicitly decided to boot into a feature rich initramfs to enable easy
+tweaking of the boot process to explore novel ideas.
+
+The workflow consists of four different steps:
+
+1. [Install dependencies](#install-dependencies)
+2. [Build packages](#build-packages)
+3. [Prepare host](#prepare-host)
+4. [Prepare guest](#prepare-guest)
+5. [Run](#run)
+
+Note: the guide below is intended for users running a Debian-based Linux
+distribution such as Ubuntu or Debian. If you are using a different distribution
+most of our scripts likely will not work out of the box but will require some
+adaptation.
+
+## Install dependencies
+
+TODO: write separate script? Move stuff from prepare-snp-dependencies.sh, skip packages if already installed
+
+```bash
+# Install dependencies from APT
+# TODO: others
+sudo apt update && sudo apt install make
+
+# Install Docker using convenience script
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh ./get-docker.sh --dry-run
+```
+
+## Build packages
+
+The first step consists of building customized versions of QEMU, OVMF and Linux
+kernel (both for host and guest) that have SNP-enabled capabilities. This is
+done by following the [AMD
+manual](https://github.com/AMDESE/AMDSEV/tree/snp-latest).
+
+In this repository, we provide pre-built binaries and convenience scripts to
+automate the process. Below, we give three different options, from the most
+automated (and quickest) to the most manual (and slowest) way.
+
+### Option 1: Download pre-built packages
+
+We provide pre-built packages as releases in our repository. Such packages have
+been built using our Option 2 below.
+
+```bash
+# Download archive from our Github repository
+
+# unpack archive
+tar -xf snp-release.tar.gz
+```
+
+### Option 2: Build with Docker
+
+Here, we create a Docker image that contains all the required dependencies, and
+then we run a container in detached mode that builds the actual QEMU, OVMF, and
+kernel packages. The container will run in the background, allowing you to close
+the current shell and wait until the packages have been built. When the
+container has finished, we fetch the packages and extract the TAR archive.
+
+```bash
+# go to the `docker` folder
+cd docker
+
+# Build docker image containing all dependencies
+make image
+
+# Run container in the background (it can take several hours to complete)
+make build
+
+# Fetch archive from the container
+# note: you should wait until the container has exited successfully. Otherwise, this command will fail
+make get_files
+
+# (optional) remove container
+make clean
+
+# go back to the root dir
+cd ..
+
+# unpack archive
+tar -xf snp-release.tar.gz
+```
+
+### Option 3: Build locally
+
+We wrote a convenience script that installs all build dependencies and builds
+the required packages. Note that building the linux kernel may take several
+hours. 
+
+```bash
+# Run build script
+# TODO: use screen session to run in background
+./scripts/local-build.sh
+```
+
+## Prepare host
+
+Make sure that your host is fully configured to run SNP-enabled guests. Follow
+the [official
+guide](https://github.com/AMDESE/AMDSEV/tree/snp-latest?tab=readme-ov-file#prepare-host) to prepare the host correctly.
+
+Note: if you followed the [build](#build-packages) guide above, the `install.sh`
+script to install the host kernel is available under `./snp-release/`:
+
+```bash
+cd snp-release
+./install.sh
+```
+
+## Prepare guest
+
+TODO: automated script/makefile with option for integrity vs encryption
+
+## Run
+
+TODO: automated script/makefile with option for integrity vs encryption
 
 ## TLDR
 Assuming you are using Ubuntu
