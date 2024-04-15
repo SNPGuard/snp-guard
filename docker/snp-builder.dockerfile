@@ -35,6 +35,8 @@ RUN apt update && \
     llvm \
     cpio \
     zstd \
+    debhelper \
+    rsync \
     && rm -rf /var/lib/apt/lists/*
 
 # clone repository
