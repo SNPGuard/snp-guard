@@ -12,13 +12,18 @@ be used in any kind of production scenario.
 We explicitly decided to boot into a feature rich initramfs to enable easy
 tweaking of the boot process to explore novel ideas.
 
-The workflow consists of four different steps:
+The workflow consists of five different stages:
 
 1. [Install dependencies](#install-dependencies)
 2. [Build packages](#build-packages)
 3. [Prepare host](#prepare-host)
 4. [Prepare guest](#prepare-guest)
 5. [Run](#run)
+
+The first three steps are supposed to be done only once, unless you wish to
+install updated versions of the SNP tools and packages. Except for preparing the
+host and running VMs, the other steps do not need to be executed on a SNP
+machine.
 
 Note: the guide below is intended for users running a Debian-based Linux
 distribution such as Ubuntu or Debian. If you are using a different distribution
@@ -111,9 +116,18 @@ hours.
 
 ### Step 0: SEV firmware
 
-To upgrade the SEV firmware, check the
-  [AMDSEV](https://github.com/AMDESE/AMDSEV/tree/snp-latest?tab=readme-ov-file#upgrade-sev-firmware)
-  repo for detailed instructions.
+SEV-SNP requires firmware version >= 1.51:1. To check which version of the
+firmware is installed, you can use the
+[snphost](https://github.com/virtee/snphost) utility, as shown below:
+
+```bash
+# check current fw version (note: you may need to run as root)
+snphost show version
+```
+
+To update your firmware, [check
+this
+guide](https://github.com/AMDESE/AMDSEV/tree/snp-latest#upgrade-sev-firmware).
 
 ### Step 1: BIOS settings
 
@@ -136,7 +150,7 @@ script to install the host kernel is available under `./snp-release/`:
 
 ```bash
 cd snp-release
-./install.sh
+sudo ./install.sh
 
 # Reboot machine and choose the SNP host kernel from the GRUB menu
 ```
@@ -193,13 +207,41 @@ sudo dmesg | grep -i -e rmp -e sev
 # SEV-ES and SEV-SNP supported: 99 ASIDs
 ```
 
-## Prepare guest
+## Prepare guest 
 
-TODO: automated script/makefile with option for integrity vs encryption
+TODO: Step 1 should be generic enough to be used by either Step 2A or 2B. Do not
+force the user to inject secrets at step 1, so that they can be free to use
+the integrity-only workflow if they wish to do so.
+
+### Step 1A: Use an existing image
+
+TODO: issues with lvm2
+
+### Step 1B: Create new image
+
+Copy and adapt from [Create new VM image](#optional-create-new-vm-image)
+
+### Step 2: Build custom initramfs
+
+TODO: initramfs should support both workflows, which should be selectable via
+kernel command-line parameters
+
+### Step 3A: (Integrity-only workflow) Set up dm-verity
+
+### Step 3B: (Integrity+confidentiality workflow) Set up dm-crypt
 
 ## Run
 
-TODO: automated script/makefile with option for integrity vs encryption
+TODO: copy/adapt from below
+
+### Step 1: Launch guest
+
+TODO: not sure, but for running existing images (step 1A above) we may need to
+run `modprobe sev-guest` to enable `/dev/sev-guest`
+
+### Step 2A: (Integrity-only workflow) Verify guest integrity
+
+### Step 2B: (Integrity+confidentiality workflow) Unlock encrypted filesystem
 
 ## TLDR
 Assuming you are using Ubuntu
