@@ -1,0 +1,66 @@
+From 357dcbbd9048d0c943c9db12939932cb0f02cc79 Mon Sep 17 00:00:00 2001
+From: Gianluca Scopelliti <gianluca.scopelliti@ericsson.com>
+Date: Tue, 16 Apr 2024 15:22:18 +0000
+Subject: [PATCH] update launch-qemu.sh to enable OVMF kernel hashes
+
+---
+ launch-qemu.sh | 20 +++-----------------
+ 1 file changed, 3 insertions(+), 17 deletions(-)
+
+diff --git a/launch-qemu.sh b/launch-qemu.sh
+index 51427d7..461a17f 100755
+--- a/launch-qemu.sh
++++ b/launch-qemu.sh
+@@ -188,25 +188,13 @@ QEMU_EXE="$(readlink -e $TMP)"
+ 	[ -z "$GUEST_NAME" ] && GUEST_NAME="$(basename $TMP | sed -re 's|\.[^\.]+$||')"
+ }
+ 
+-TMP="$UEFI_PATH/OVMF_CODE.fd"
++TMP="$UEFI_PATH/DIRECT_BOOT_OVMF.fd"
+ UEFI_CODE="$(readlink -e $TMP)"
+ [ -z "$UEFI_CODE" ] && {
+ 	echo "Can't locate UEFI code file [$TMP]"
+ 	usage
+ }
+ 
+-[ -e "./$GUEST_NAME.fd" ] || {
+-	TMP="$UEFI_PATH/OVMF_VARS.fd"
+-	UEFI_VARS="$(readlink -e $TMP)"
+-	[ -z "$UEFI_VARS" ] && {
+-		echo "Can't locate UEFI variable file [$TMP]"
+-		usage
+-	}
+-
+-	run_cmd "cp $UEFI_VARS ./$GUEST_NAME.fd"
+-}
+-UEFI_VARS="$(readlink -e ./$GUEST_NAME.fd)"
+-
+ if [ "$ALLOW_DEBUG" = "1" ]; then
+ 	# This will dump all the VMCB on VM exit
+ 	echo 1 > /sys/module/kvm_amd/parameters/dump_all_vmcbs
+@@ -243,10 +231,8 @@ add_opts "-no-reboot"
+ # persistent flash device.
+ if [ "${SEV_SNP}" = 1 ]; then
+     add_opts "-bios ${UEFI_CODE}"
+-    add_opts "-drive if=pflash,format=raw,unit=0,file=${UEFI_VARS}"
+ else
+     add_opts "-drive if=pflash,format=raw,unit=0,file=${UEFI_CODE},readonly"
+-    add_opts "-drive if=pflash,format=raw,unit=1,file=${UEFI_VARS}"
+ fi
+ 
+ # add CDROM if specified
+@@ -297,9 +283,9 @@ if [ ${SEV} = "1" ]; then
+ 		add_opts "-object memory-backend-memfd,id=ram1,size=${MEM}M,share=true,prealloc=false"
+ 		add_opts "-machine memory-backend=ram1"
+ 		if [ "${CERTS_PATH}" != "" ]; then
+-			add_opts "-object sev-snp-guest,id=sev0,cbitpos=${CBITPOS},reduced-phys-bits=1,certs-path=${CERTS_PATH}"
++			add_opts "-object sev-snp-guest,id=sev0,cbitpos=${CBITPOS},kernel-hashes=on,reduced-phys-bits=1,certs-path=${CERTS_PATH}"
+ 		else
+-			add_opts "-object sev-snp-guest,id=sev0,cbitpos=${CBITPOS},reduced-phys-bits=1"
++			add_opts "-object sev-snp-guest,id=sev0,cbitpos=${CBITPOS},kernel-hashes=on,reduced-phys-bits=1"
+ 		fi
+ 	else
+ 		add_opts "-object sev-guest,id=sev0${SEV_POLICY},cbitpos=${CBITPOS},reduced-phys-bits=1"
+-- 
+2.34.1
+

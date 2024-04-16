@@ -27,12 +27,15 @@ package() {
     tar zcvf ${OUTPUT_DIR}.tar.gz ${OUTPUT_DIR}
 }
 
-# clone repository
+echo "Cloning AMDSEV repository.."
 git clone https://github.com/AMDESE/AMDSEV.git --branch snp-latest --depth 1
 cd AMDSEV
 
-# patch repository to build custom OVMF
-git apply ../ovmf.patch
+echo "Applying patches.."
+git apply ../patches/*.patch
 
+echo "Building packages.."
 ./build.sh
+
+echo "Create tar archive.."
 package

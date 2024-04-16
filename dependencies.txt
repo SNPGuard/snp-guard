@@ -26,3 +26,4 @@ cpio
 zstd
 debhelper
 rsync
+wget
