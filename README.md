@@ -109,9 +109,27 @@ hours.
 
 ## Prepare host
 
-Make sure that your host is fully configured to run SNP-enabled guests. Follow
-the [official
-guide](https://github.com/AMDESE/AMDSEV/tree/snp-latest?tab=readme-ov-file#prepare-host) to prepare the host correctly.
+### Step 0: SEV firmware
+
+To upgrade the SEV firmware, check the
+  [AMDSEV](https://github.com/AMDESE/AMDSEV/tree/snp-latest?tab=readme-ov-file#upgrade-sev-firmware)
+  repo for detailed instructions.
+
+### Step 1: BIOS settings
+
+Some BIOS settings are required in order to use SEV-SNP. The settings slightly
+differ, but make sure to check the following:
+- `Secure Nested Paging`: to enable SNP
+- `Secure Memory Encryption`: to enable SME (not required for running SNP guests)
+- `SNP Memory Coverage`: needs to be enabled to reserve space for the Reverse
+  Map Page Table (RMP). [Source](https://github.com/AMDESE/AMDSEV/issues/68)
+- `Minimum SEV non-ES ASID`: this option configures the minimum address space ID
+  used for non-ES SEV guests. By setting this value to 1 you are allocating all
+  ASIDs for normal SEV guests and it would not be possible to enable SEV-ES and
+  SEV-SNP. So, this value should be greater than 1.
+
+
+### Step 2: Install host kernel
 
 Note: if you followed the [build](#build-packages) guide above, the `install.sh`
 script to install the host kernel is available under `./snp-release/`:
@@ -119,6 +137,60 @@ script to install the host kernel is available under `./snp-release/`:
 ```bash
 cd snp-release
 ./install.sh
+
+# Reboot machine and choose the SNP host kernel from the GRUB menu
+```
+
+### Step 3: Ensure that kernel options are correct
+
+- Make sure that IOMMU is enabled and **not** in passthrough mode, otherwise
+  SEV-SNP will not work. Ensure that the iommu flag is set to `iommu=nopt` under
+  `GRUB_CMDLINE_LINUX_DEFAULT`.
+  [Source](https://github.com/AMDESE/AMDSEV/issues/88)
+    - Check both `/etc/default/grub` and `/etc/default/grub.d/rbu-kernel.cfg`
+    - If needed (i.e., if SEV-SNP doesn't work) set also `iommu.passthrough=0`
+
+- With recent SNP-enabled kernels, KVM flags should be already set correctly.
+  For earlier versions, you may need to set the following flags in
+  `/etc/default/grub`:
+    - `kvm_amd.sev=1`
+    - `kvm_amd.sev-es=1` 
+    - `kvm_amd.sev-snp=1`
+
+- SME should not be required to run SEV-SNP guests. In any case, to enable it
+  you should set the following flag: `mem_encrypt=on`.
+
+- The changes above should be applied with `sudo update grub` and then a reboot.
+
+### Step 4: Check if everything is set up correctly on the host
+
+Note: outputs may slightly differ.
+
+```bash
+# Check kernel version
+uname -r
+# 6.5.0-rc2-snp-host-ad9c0bf475ec
+
+# Check if SEV is among the CPU flags
+grep -w sev /proc/cpuinfo
+# flags           : ...
+# flush_l1d sme sev sev_es sev_snp
+
+# Check if SEV, SEV-ES and SEV-SNP are available in KVM
+cat /sys/module/kvm_amd/parameters/sev
+# Y
+cat /sys/module/kvm_amd/parameters/sev_es 
+# Y
+cat /sys/module/kvm_amd/parameters/sev_snp 
+# Y
+
+# Check if SEV is enabled in the kernel
+sudo dmesg | grep -i -e rmp -e sev
+# SEV-SNP: RMP table physical address 0x0000000035600000 - 0x0000000075bfffff
+# ccp 0000:23:00.1: sev enabled
+# ccp 0000:23:00.1: SEV-SNP API:1.51 build:1
+# SEV supported: 410 ASIDs
+# SEV-ES and SEV-SNP supported: 99 ASIDs
 ```
 
 ## Prepare guest
