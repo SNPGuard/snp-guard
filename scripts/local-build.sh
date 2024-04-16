@@ -24,35 +24,7 @@ done
 
 echo "Installing build dependencies for kernel, OVMF and QEMU"
 sudo apt update
-sudo apt install -y --no-install-recommends \
-    build-essential \
-    git \
-    python3 \
-    python3-venv \
-    ninja-build \
-    libglib2.0-dev \
-    uuid-dev \
-    iasl \
-    nasm \
-    python-is-python3 \
-    flex \
-    bison \
-    openssl \
-    libssl-dev \
-    libelf-dev \
-    bc \
-    libncurses-dev \
-    gawk \
-    dkms \
-    libudev-dev \
-    libpci-dev \
-    libiberty-dev \
-    autoconf \
-    llvm \
-    cpio \
-    zstd \
-    debhelper \
-    rsync
+xargs -a dependencies.txt sudo apt install -y --no-install-recommends
 
 if [ -z "$AMDPATH" ]; then
     git clone https://github.com/AMDESE/AMDSEV.git --branch snp-latest --depth 1

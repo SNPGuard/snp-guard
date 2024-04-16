@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 package() {
     INSTALL_DIR="`pwd`/usr/local"
     OUTPUT_DIR="../snp-release"
@@ -25,6 +27,12 @@ package() {
     tar zcvf ${OUTPUT_DIR}.tar.gz ${OUTPUT_DIR}
 }
 
+# clone repository
+git clone https://github.com/AMDESE/AMDSEV.git --branch snp-latest --depth 1
 cd AMDSEV
+
+# patch repository to build custom OVMF
+git apply ../ovmf.patch
+
 ./build.sh
 package

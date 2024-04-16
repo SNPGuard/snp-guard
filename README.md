@@ -57,6 +57,7 @@ been built using our Option 2 below.
 
 ```bash
 # Download archive from our Github repository
+wget https://github.com/its-luca/open-e2e-sevsnp-workflow/releases/download/untagged-efba89178443f35b50f9/snp-release.tar.gz
 
 # unpack archive
 tar -xf snp-release.tar.gz
@@ -71,8 +72,8 @@ the current shell and wait until the packages have been built. When the
 container has finished, we fetch the packages and extract the TAR archive.
 
 ```bash
-# go to the `docker` folder
-cd docker
+# go to the `snp-builder` folder
+cd snp-builder
 
 # Build docker image containing all dependencies
 make image
