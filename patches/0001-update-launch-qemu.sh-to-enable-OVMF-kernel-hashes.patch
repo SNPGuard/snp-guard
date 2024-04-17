@@ -1,14 +1,14 @@
-From 357dcbbd9048d0c943c9db12939932cb0f02cc79 Mon Sep 17 00:00:00 2001
+From 788c4951ebaea36f2e7c829a34623e2c8f89109f Mon Sep 17 00:00:00 2001
 From: Gianluca Scopelliti <gianluca.scopelliti@ericsson.com>
-Date: Tue, 16 Apr 2024 15:22:18 +0000
+Date: Wed, 17 Apr 2024 10:34:32 +0000
 Subject: [PATCH] update launch-qemu.sh to enable OVMF kernel hashes
 
 ---
- launch-qemu.sh | 20 +++-----------------
- 1 file changed, 3 insertions(+), 17 deletions(-)
+ launch-qemu.sh | 27 ++++++++++-----------------
+ 1 file changed, 10 insertions(+), 17 deletions(-)
 
 diff --git a/launch-qemu.sh b/launch-qemu.sh
-index 51427d7..461a17f 100755
+index 51427d7..bef779a 100755
 --- a/launch-qemu.sh
 +++ b/launch-qemu.sh
 @@ -188,25 +188,13 @@ QEMU_EXE="$(readlink -e $TMP)"
@@ -49,15 +49,23 @@ index 51427d7..461a17f 100755
  fi
  
  # add CDROM if specified
-@@ -297,9 +283,9 @@ if [ ${SEV} = "1" ]; then
+@@ -296,10 +282,17 @@ if [ ${SEV} = "1" ]; then
+ 	if [ "${SEV_SNP}" = 1 ]; then
  		add_opts "-object memory-backend-memfd,id=ram1,size=${MEM}M,share=true,prealloc=false"
  		add_opts "-machine memory-backend=ram1"
++
++		if [ "${KERNEL_FILE}" != "" ]; then
++			MEASURED_BOOT=on
++		else
++			MEASURED_BOOT=off
++		fi
++
  		if [ "${CERTS_PATH}" != "" ]; then
 -			add_opts "-object sev-snp-guest,id=sev0,cbitpos=${CBITPOS},reduced-phys-bits=1,certs-path=${CERTS_PATH}"
-+			add_opts "-object sev-snp-guest,id=sev0,cbitpos=${CBITPOS},kernel-hashes=on,reduced-phys-bits=1,certs-path=${CERTS_PATH}"
++			add_opts "-object sev-snp-guest,id=sev0,cbitpos=${CBITPOS},kernel-hashes=${MEASURED_BOOT},reduced-phys-bits=1,certs-path=${CERTS_PATH}"
  		else
 -			add_opts "-object sev-snp-guest,id=sev0,cbitpos=${CBITPOS},reduced-phys-bits=1"
-+			add_opts "-object sev-snp-guest,id=sev0,cbitpos=${CBITPOS},kernel-hashes=on,reduced-phys-bits=1"
++			add_opts "-object sev-snp-guest,id=sev0,cbitpos=${CBITPOS},kernel-hashes=${MEASURED_BOOT},reduced-phys-bits=1"
  		fi
  	else
  		add_opts "-object sev-guest,id=sev0${SEV_POLICY},cbitpos=${CBITPOS},reduced-phys-bits=1"

@@ -1,0 +1,25 @@
+From 24b89d6b2d7d69bf2fcfd4bd8fdcea0ae8346454 Mon Sep 17 00:00:00 2001
+From: Gianluca Scopelliti <gianluca.scopelliti@ericsson.com>
+Date: Wed, 17 Apr 2024 10:18:00 +0000
+Subject: [PATCH] mapping ports 22:2222 and 80:8080
+
+---
+ launch-qemu.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/launch-qemu.sh b/launch-qemu.sh
+index 461a17f..c98eca5 100755
+--- a/launch-qemu.sh
++++ b/launch-qemu.sh
+@@ -244,7 +244,7 @@ fi
+ if [ "$USE_DEFAULT_NETWORK" = "1" ]; then
+     #echo "guest port 22 is fwd to host 8000..."
+     #add_opts "-netdev user,id=vmnic,hostfwd=tcp::8000-:22 -device e1000,netdev=vmnic,romfile="
+-    add_opts "-netdev user,id=vmnic"
++    add_opts "-netdev user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::8080-:80"
+     add_opts " -device virtio-net-pci,disable-legacy=on,iommu_platform=true,netdev=vmnic,romfile="
+ fi
+ 
+-- 
+2.34.1
+
