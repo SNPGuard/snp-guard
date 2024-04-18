@@ -1,0 +1,68 @@
+From 325285027f734e4b1cebbf4570bcafd7f29c1448 Mon Sep 17 00:00:00 2001
+From: Gianluca Scopelliti <gianluca.scopelliti@ericsson.com>
+Date: Thu, 18 Apr 2024 08:38:24 +0000
+Subject: [PATCH] mount secondary hard disk
+
+---
+ launch-qemu.sh | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/launch-qemu.sh b/launch-qemu.sh
+index e00ab71..d2e323c 100755
+--- a/launch-qemu.sh
++++ b/launch-qemu.sh
+@@ -4,6 +4,7 @@
+ # user changeable parameters
+ #
+ HDA="/home/amd/fedora-30.raw"
++HDB=""
+ MEM="2048"
+ SMP="4"
+ VNC=""
+@@ -35,6 +36,7 @@ usage() {
+ 	echo " -enable-discard    for SNP, discard memory after conversion. (worse boot-time performance, but less memory usage)"
+ 	echo " -bios              the bios to use (default $UEFI_PATH)"
+ 	echo " -hda PATH          hard disk file (default $HDA)"
++	echo " -hdb PATH          secondary hard disk"
+ 	echo " -mem MEM           guest memory size in MB (default $MEM)"
+ 	echo " -smp NCPUS         number of virtual cpus (default $SMP)"
+ 	echo " -cpu CPU_MODEL     QEMU CPU model/type to use (default $CPU_MODEL)."
+@@ -114,6 +116,9 @@ while [ -n "$1" ]; do
+ 		-hda) 		HDA="$2"
+ 				shift
+ 				;;
++		-hdb) 		HDB="$2"
++				shift
++				;;
+ 		-mem)  		MEM="$2"
+ 				shift
+ 				;;
+@@ -267,6 +272,25 @@ if [ -n "${HDA}" ]; then
+ 	fi
+ fi
+ 
++if [ -n "${HDB}" ]; then
++	if [ "$USE_VIRTIO" = "1" ]; then
++		if [[ ${HDB} = *"qcow2" ]]; then
++			add_opts "-drive file=${HDB},if=none,id=disk1,format=qcow2"
++		else
++			add_opts "-drive file=${HDB},if=none,id=disk1,format=raw"
++		fi
++		add_opts "-device virtio-scsi-pci,id=scsi1,disable-legacy=on,iommu_platform=true"
++		add_opts "-device scsi-hd,drive=disk1"
++	else
++		if [[ ${HDB} = *"qcow2" ]]; then
++			add_opts "-drive file=${HDB},format=qcow2"
++		else
++			add_opts "-drive file=${HDB},format=raw"
++		fi
++	fi
++fi
++
++
+ # If this is SEV guest then add the encryption device objects to enable support
+ if [ ${SEV} = "1" ]; then
+ 	add_opts "-machine memory-encryption=sev0,vmport=off" 
+-- 
+2.34.1
+

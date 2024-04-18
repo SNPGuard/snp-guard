@@ -7,3 +7,4 @@ AMDSEV/
 vm-kernel/
 build.env
 snp-release*
+vm-data
