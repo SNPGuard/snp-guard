@@ -109,7 +109,7 @@ hours.
 ```bash
 # Run build script
 # TODO: use screen session to run in background
-./scripts/local-build.sh
+./scripts/build-packages.sh
 ```
 
 ## Prepare host
