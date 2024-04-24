@@ -104,6 +104,6 @@ echo "Repackaging initrd.."
 (cd $INITRD_DIR ; find . -print0 | cpio --null -ov --format=newc 2>/dev/null | pv | gzip -1 > $OUT)
 
 echo "Cleaning up.."
-#rm -rf $INITRD_DIR
+rm -rf $INITRD_DIR
 
 echo "Done! New initrd can be found ad $OUT"

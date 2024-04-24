@@ -36,8 +36,7 @@ TODO: write separate script? Move stuff from prepare-snp-dependencies.sh, skip p
 
 ```bash
 # Install dependencies from APT
-# TODO: others
-sudo apt update && sudo apt install make
+sudo apt update && sudo apt install make whois initramfs-tools-core pv
 
 # Install Docker using convenience script
 curl -fsSL https://get.docker.com -o get-docker.sh
@@ -62,7 +61,8 @@ been built using our Option 2 below.
 
 ```bash
 # Download archive from our Github repository
-wget https://github.com/its-luca/open-e2e-sevsnp-workflow/releases/download/untagged-efba89178443f35b50f9/snp-release.tar.gz
+# TODO: update link
+wget <link>
 
 # unpack archive
 tar -xf snp-release.tar.gz
@@ -209,22 +209,49 @@ sudo dmesg | grep -i -e rmp -e sev
 
 ## Prepare guest 
 
-TODO: Step 1 should be generic enough to be used by either Step 2A or 2B. Do not
-force the user to inject secrets at step 1, so that they can be free to use
-the integrity-only workflow if they wish to do so.
+TODO: Steps 1-2 should be generic enough to be used by either Step 3A or 3B. Do
+not force the user to inject secrets at steps 1-2, so that they can be free to
+use the integrity-only workflow if they wish to do so.
 
-### Step 1A: Use an existing image
+### Step 0: Unpack kernel
+
+We first need to unpack the kernel obtained from the built packages. By default
+the kernel package can be found under
+`snp-release/linux/guest/linux-image-*.deb`. We unpack it to `build/kernel`.
+
+```bash
+make unpack_kernel
+```
+
+### Step 1: Build custom initramfs
+
+We need to build a customized initramfs (i.e., initial RAM disk) to configure
+boot options at early userspace and enable our workflows.
+
+We do this by leveraging Docker. In short, we run a `ubuntu` container and then
+we export its filesystem on `build/initramfs/`. Afterwards, we make the
+necessary adjustments to the filesystem, such as adding a `init` script,
+removing unnecessary folders, and changing file permissions. Finally, we build
+the initramfs archive using CPIO.
+
+First, however, we build custom tools that are needed in initramfs, such as
+`attestation_server`. All tools will be copied to the `build/bin` directory.
+
+```bash
+# Build custom tools
+make build_tools
+
+# Create initramfs
+make initramfs
+```
+
+### Step 2A: Use an existing image
 
 TODO: issues with lvm2
 
-### Step 1B: Create new image
+### Step 2B: Create new image
 
 Copy and adapt from [Create new VM image](#optional-create-new-vm-image)
-
-### Step 2: Build custom initramfs
-
-TODO: initramfs should support both workflows, which should be selectable via
-kernel command-line parameters
 
 ### Step 3A: (Integrity-only workflow) Set up dm-verity
 

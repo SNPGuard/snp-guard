@@ -67,6 +67,9 @@ docker export $DOCKER_IMG | tar xpf - -C $INITRD_DIR
 echo "Copying kernel modules.."
 cp -r $KERNEL_DIR/lib $INITRD_DIR/usr
 
+echo "Copying binaries.."
+cp -r $BUILD_DIR/bin $INITRD_DIR/usr
+
 echo "Copying init script.."
 cp $INIT_SCRIPT $INITRD_DIR/init
 
