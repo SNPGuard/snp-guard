@@ -9,7 +9,8 @@ KERNEL_DEB        ?= $(SNP_DIR)/linux/guest/linux-image-*.deb
 KERNEL_DIR        ?= $(BUILD_DIR)/kernel
 KERNEL            ?= $(KERNEL_DIR)/boot/vmlinuz-*
 INITRD            ?= $(BUILD_DIR)/initramfs.cpio.gz
-KERNEL_CMDLINE    ?= console=ttyS0 earlyprintk=serial root=/dev/sda1
+ROOT              ?= /dev/sda
+KERNEL_CMDLINE    ?= console=ttyS0 earlyprintk=serial root=$(ROOT)
 
 IMAGE_PATH         = $(shell realpath $(IMAGE))
 KERNEL_PATH        = $(shell realpath $(KERNEL))
@@ -18,9 +19,10 @@ INITRD_PATH        = $(shell realpath $(INITRD))
 INITRD_ORIG       ?= $(KERNEL_DIR)/initrd.img-*
 INIT_SCRIPT       ?= init.sh
 
-VERITY_HASH_TREE ?= $(BUILD_DIR)/verity/hash_tree
-VERITY_ROOT_HASH ?= $(BUILD_DIR)/verity/roothash.txt
-VERITY_PARAMS    ?= boot=verity verity_disk=/dev/sdb verity_roothash=$(shell cat $(VERITY_ROOT_HASH))
+VERITY_IMAGE      ?= $(BUILD_DIR)/verity/image.qcow2
+VERITY_HASH_TREE  ?= $(BUILD_DIR)/verity/hash_tree.bin
+VERITY_ROOT_HASH  ?= $(BUILD_DIR)/verity/roothash.txt
+VERITY_PARAMS     ?= boot=verity verity_disk=/dev/sdb verity_roothash=$(shell cat $(VERITY_ROOT_HASH))
 
 
 run:
@@ -33,7 +35,7 @@ run_sev_snp_direct_boot:
 	cd $(SNP_DIR) && sudo ./launch-qemu.sh -hda $(IMAGE_PATH) -sev-snp -default-network -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -append "$(KERNEL_CMDLINE)"
 
 run_sev_snp_verity:
-	cd $(SNP_DIR) && sudo ./launch-qemu.sh -hda $(IMAGE_PATH) -hdb $(VERITY_HASH_TREE) -sev-snp -default-network -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -append "$(KERNEL_CMDLINE) $(VERITY_PARAMS)"
+	cd $(SNP_DIR) && sudo ./launch-qemu.sh -hda $(VERITY_IMAGE) -hdb $(VERITY_HASH_TREE) -sev-snp -default-network -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -append "$(KERNEL_CMDLINE) $(VERITY_PARAMS)"
 
 unpack_kernel: init_dir
 	dpkg -x $(KERNEL_DEB) $(KERNEL_DIR)
@@ -52,7 +54,7 @@ initramfs:
 
 setup_verity:
 	mkdir -p $(BUILD_DIR)/verity
-	./convert-vm/setup_verity.sh -image $(IMAGE) -fs-id 1 -out-hash-tree $(VERITY_HASH_TREE) -out-root-hash $(VERITY_ROOT_HASH)
+	./convert-vm/setup_verity.sh -image $(IMAGE) -fs-id 1 -out-image $(VERITY_IMAGE) -out-hash-tree $(VERITY_HASH_TREE) -out-root-hash $(VERITY_ROOT_HASH)
 
 init_dir:
 	mkdir -p $(BUILD_DIR)

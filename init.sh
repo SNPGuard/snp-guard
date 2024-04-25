@@ -91,10 +91,25 @@ boot_encrypted() {
 boot_verity() {
     echo "Booting dm-verity filesystem.."
 
+    # unlock verity device
     veritysetup open $ROOT root $VERITY_DISK $VERITY_ROOT_HASH
 
     # mount root disk as read-only
     mount -o ro,noload /dev/mapper/root $MNT_DIR
+
+    # create RAM filesystems (protected by SEV-SNP)
+    mount -t tmpfs -o size=2048M tmpfs $MNT_DIR/home
+    mount -t tmpfs -o size=128M tmpfs $MNT_DIR/etc
+    mount -t tmpfs -o size=1024M tmpfs $MNT_DIR/var
+    mount -t tmpfs -o size=128M tmpfs $MNT_DIR/tmp
+
+    # copy home, etc, var contents to RAM fs
+    rsync -paxHAWXS $MNT_DIR/home_ro/ $MNT_DIR/home/
+    rsync -paxHAWXS $MNT_DIR/etc_ro/ $MNT_DIR/etc/
+    rsync -paxHAWXS $MNT_DIR/var_ro/ $MNT_DIR/var/
+
+    # generate new SSH key for SSH server
+    ssh-keygen -t ecdsa -f $MNT_DIR/etc/ssh/ssh_host_ecdsa_key -N "" >/dev/null 2>&1
 }
 
 #default launch config for sev uses virto as device driver

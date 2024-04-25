@@ -18,7 +18,8 @@ The workflow consists of five different stages:
 2. [Build packages](#build-packages)
 3. [Prepare host](#prepare-host)
 4. [Prepare guest](#prepare-guest)
-5. [Run](#run)
+5. Run: [integrity](#run-integrity-only-workflow) and
+   [encrypted](#run-encrypted-workflow) workflows
 
 The first three steps are supposed to be done only once, unless you wish to
 install updated versions of the SNP tools and packages. Except for preparing the
@@ -245,35 +246,41 @@ make build_tools
 make initramfs
 ```
 
-### Step 2A: Use an existing image
+### Step 2: Prepare guest image
+
+**Option A: use an existing image**
 
 TODO: issues with lvm2
 
-### Step 2B: Create new image
+**Option B: create a new image**
 
 Copy and adapt from [Create new VM image](#optional-create-new-vm-image)
 
-### Step 3A: (Integrity-only workflow) Set up dm-verity
+## Run integrity-only workflow
+
+### Step 1: Prepare dm-verity
 
 ```bash
 # Create verity device
 make setup_verity
 ```
 
-### Step 3B: (Integrity+confidentiality workflow) Set up dm-crypt
+### Step 2: Launch guest
 
-## Run
+```bash
+# Create verity device
+make run_sev_snp_verity
+```
 
-TODO: copy/adapt from below
+### Step 3: Verify guest integrity
 
-### Step 1: Launch guest
+## Run encrypted workflow
 
-TODO: not sure, but for running existing images (step 1A above) we may need to
-run `modprobe sev-guest` to enable `/dev/sev-guest`
+### Step 1: Prepare dm-crypt
 
-### Step 2A: (Integrity-only workflow) Verify guest integrity
+### Step 2: Launch guest
 
-### Step 2B: (Integrity+confidentiality workflow) Unlock encrypted filesystem
+### Step 3: Unlock encrypted filesystem
 
 ## TLDR
 Assuming you are using Ubuntu
