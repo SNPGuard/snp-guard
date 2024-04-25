@@ -25,7 +25,7 @@ usage() {
   echo "-build-dir PATH             [Optional] Path where all files will be written to (default '.')"
   echo "-size INTEGER               [Optional]  Size for the qcow2 disk image in GB. Defaults to 20"
   echo "-owner-pubkey PATH          [Optional]  Path to SSH public key that gets added to authorized keys. If not specified, we generate a new keypair"
-  echo "-server-privkey PATH       [Optional]  Path to SSH private key that is used for the OpenSSH server. If not specified, we generate a new keypair"
+  echo "-server-privkey PATH        [Optional]  Path to SSH private key that is used for the OpenSSH server. If not specified, we generate a new keypair"
 }
 
 

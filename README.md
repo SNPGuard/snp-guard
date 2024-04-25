@@ -33,18 +33,9 @@ adaptation.
 
 ## Install dependencies
 
-TODO: write separate script? Move stuff from prepare-snp-dependencies.sh, skip packages if already installed
-
 ```bash
-# Install dependencies from APT
-sudo apt update && sudo apt install make whois pv
-
-# Install Docker using convenience script
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh ./get-docker.sh --dry-run
-
-# Install Rust toolchain
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# Install dependencies
+make install_dependencies
 ```
 
 ## Build packages
