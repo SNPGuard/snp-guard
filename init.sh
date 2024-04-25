@@ -94,7 +94,7 @@ boot_verity() {
     veritysetup open $ROOT root $VERITY_DISK $VERITY_ROOT_HASH
 
     # mount root disk as read-only
-    mount -o ro /dev/mapper/root $MNT_DIR
+    mount -o ro,noload /dev/mapper/root $MNT_DIR
 }
 
 #default launch config for sev uses virto as device driver

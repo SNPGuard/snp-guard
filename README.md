@@ -255,6 +255,11 @@ Copy and adapt from [Create new VM image](#optional-create-new-vm-image)
 
 ### Step 3A: (Integrity-only workflow) Set up dm-verity
 
+```bash
+# Create verity device
+make setup_verity
+```
+
 ### Step 3B: (Integrity+confidentiality workflow) Set up dm-crypt
 
 ## Run
