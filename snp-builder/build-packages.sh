@@ -3,6 +3,8 @@
 set -e
 
 ROOT_DIR=$(realpath .)
+SCRIPT_DIR=$ROOT_DIR/snp-builder
+BUILD_DIR=$ROOT_DIR/build
 
 usage() {
   echo "$0 [options]"
@@ -24,7 +26,7 @@ done
 
 echo "Installing build dependencies for kernel, OVMF and QEMU"
 sudo apt update
-xargs -a dependencies.txt sudo apt install -y --no-install-recommends
+xargs -a $SCRIPT_DIR/dependencies.txt sudo apt install -y --no-install-recommends
 
 echo "Installing libslirp 4.7.1 packages, needed to enable user networking in QEMU"
 wget http://se.archive.ubuntu.com/ubuntu/pool/main/libs/libslirp/libslirp0_4.7.0-1_amd64.deb -O libslirp0.deb
@@ -36,8 +38,8 @@ sudo dpkg -i libslirp-dev.deb
 rm -rf libslirp0.deb libslirp-dev.deb
 
 if [ -z "$AMDPATH" ]; then
-    git clone https://github.com/AMDESE/AMDSEV.git --branch snp-latest --depth 1
-    AMDPATH="AMDSEV"
+	AMDPATH=$BUILD_DIR/AMDSEV
+    git clone https://github.com/AMDESE/AMDSEV.git --branch snp-latest --depth 1 $AMDPATH
 else
   echo "Using AMDSEV repository: $(realpath $AMDPATH)"
 fi
@@ -46,12 +48,12 @@ pushd $AMDPATH 2>/dev/null
 
 echo "Applying patches"
 git restore . # remove changes that may have been made before
-git apply $ROOT_DIR/patches/*.patch
+git apply $SCRIPT_DIR/patches/*.patch
 
 echo "Building AMDSEV Repo. This might take a while"
 ./build.sh --package
 
 echo "Move SNP dir to root"
-mv snp-release-*/ $ROOT_DIR/snp-release/
+mv snp-release-*/ $BUILD_DIR/snp-release/
 
 popd

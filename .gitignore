@@ -1,10 +1,5 @@
 build
-hacky-testdata
-compile_commands.json
 .cache/
-attestation_server/target
+tools/attestation_server/target
 AMDSEV/
-vm-kernel/
 build.env
-snp-release*
-vm-data

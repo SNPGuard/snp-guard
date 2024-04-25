@@ -20,6 +20,6 @@ RUN wget $LIBSLIRP -O libslirp0.deb \
 COPY patches/ patches/
 
 # copy run script
-COPY snp-builder/run.sh .
+COPY run.sh .
 
 CMD ["./run.sh"]

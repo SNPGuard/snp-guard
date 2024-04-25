@@ -2,6 +2,8 @@
 
 set -e
 
+SCRIPT_DIR=$(realpath `dirname $0`)
+
 BUILD_DIR=$(realpath build)
 KERNEL_DIR=""
 INIT_SCRIPT=""
@@ -55,7 +57,7 @@ mkdir -p $INITRD_DIR
 
 echo "Building Docker image.."
 DOCKER_IMG="nano-vm-rootfs"
-docker build -t $DOCKER_IMG .
+docker build -t $DOCKER_IMG $SCRIPT_DIR
 
 echo "Running container.."
 docker stop $DOCKER_IMG > /dev/null 2>&1 || true

@@ -37,11 +37,14 @@ TODO: write separate script? Move stuff from prepare-snp-dependencies.sh, skip p
 
 ```bash
 # Install dependencies from APT
-sudo apt update && sudo apt install make whois initramfs-tools-core pv
+sudo apt update && sudo apt install make whois pv
 
 # Install Docker using convenience script
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh ./get-docker.sh --dry-run
+
+# Install Rust toolchain
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 ## Build packages
@@ -61,9 +64,12 @@ We provide pre-built packages as releases in our repository. Such packages have
 been built using our Option 2 below.
 
 ```bash
+# create and move to build directory
+mkdir -p build && cd build
+
 # Download archive from our Github repository
 # TODO: update link
-wget <link>
+wget <link> 
 
 # unpack archive
 tar -xf snp-release.tar.gz
@@ -94,8 +100,8 @@ make get_files
 # (optional) remove container
 make clean
 
-# go back to the root dir
-cd ..
+# go to the build dir
+cd ../build
 
 # unpack archive
 tar -xf snp-release.tar.gz
@@ -110,7 +116,7 @@ hours.
 ```bash
 # Run build script
 # TODO: use screen session to run in background
-./scripts/build-packages.sh
+./snp-builder/build-packages.sh
 ```
 
 ## Prepare host
@@ -147,10 +153,10 @@ differ, but make sure to check the following:
 ### Step 2: Install host kernel
 
 Note: if you followed the [build](#build-packages) guide above, the `install.sh`
-script to install the host kernel is available under `./snp-release/`:
+script to install the host kernel is available under `./build/snp-release/`:
 
 ```bash
-cd snp-release
+cd build/snp-release
 sudo ./install.sh
 
 # Reboot machine and choose the SNP host kernel from the GRUB menu
@@ -218,7 +224,8 @@ use the integrity-only workflow if they wish to do so.
 
 We first need to unpack the kernel obtained from the built packages. By default
 the kernel package can be found under
-`snp-release/linux/guest/linux-image-*.deb`. We unpack it to `build/kernel`.
+`build/snp-release/linux/guest/linux-image-*.deb`. We unpack it to
+`build/kernel`.
 
 ```bash
 make unpack_kernel
@@ -250,11 +257,36 @@ make initramfs
 
 **Option A: use an existing image**
 
-TODO: issues with lvm2
+TODO: check if our workflows work with lvm2 (maybe need to patch init script)
 
 **Option B: create a new image**
 
-Copy and adapt from [Create new VM image](#optional-create-new-vm-image)
+```bash
+# create image
+make create_new_vm
+
+# run image for initial setup
+make run_setup
+
+# Copy kernel and headers to guest
+scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:/home/<username>
+```
+
+**Guest configuration**
+
+```bash
+# install kernel and headers (copied before)
+# This is needed, otherwise:
+# - there is no sev-guest kernel module in the guest
+# - somehow there is no connectivity (missing network interface, only lo is present)
+sudo dpkg -i linux-*.deb
+
+# disable multipath service (it causes some conflicts)
+sudo systemctl disable multipathd.service
+
+# disable EFI and swap partitions in /etc/fstab
+# already done if a new VM was created using our script
+```
 
 ## Run integrity-only workflow
 
