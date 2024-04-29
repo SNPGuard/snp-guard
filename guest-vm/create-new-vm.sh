@@ -80,7 +80,11 @@ fi
 
 #Create a copy with a larger disk. Note that qcow2 is lazy allocated, i.e. this
 #does not produce a 20G file
-qemu-img create -f qcow2 -F qcow2 -b "$BASE_DISK" "$BUILD_DIR/$NEW_VM" "${SIZE}G"
+#qemu-img create -f qcow2 -F qcow2 -b "$BASE_DISK" "$BUILD_DIR/$NEW_VM" "${SIZE}G"
+# TODO Gianluca: everything breaks if the base image is deleted (e.g., at reboot)
+# Just make a normal copy and resize it
+cp "$BASE_DISK" "$BUILD_DIR/$NEW_VM"
+qemu-img resize "$BUILD_DIR/$NEW_VM" "${SIZE}G"
 
 KEYS_PATH="$BUILD_DIR/keys"
 
