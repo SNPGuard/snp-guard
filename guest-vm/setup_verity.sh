@@ -7,6 +7,13 @@ SRC_FOLDER=$(mktemp -d)
 DST_DEVICE=/dev/nbd1
 DST_FOLDER=$(mktemp -d)
 
+SRC_IMAGE=
+DST_IMAGE=verity_image.qcow2
+HASH_TREE=hash_tree.bin
+ROOT_HASH=roothash.txt
+
+NON_INTERACTIVE=""
+
 clean_up() {
   echo "Cleaning up"
   #use "|| true" after each fallible common to preventing exiting from the cleanup
@@ -41,21 +48,37 @@ clean_up() {
 }
 trap clean_up EXIT
 
-FS_DEVICE_ID=
-SRC_IMAGE=
-DST_IMAGE=verity_image.qcow2
-HASH_TREE=hash_tree.bin
-ROOT_HASH=roothash.txt
+find_root_fs_device() {
+	SRC_ROOT_FS_DEVICE=$(sudo fdisk $SRC_DEVICE -l | grep -i "Linux filesystem" | awk '{print $1}')
 
-usage() {
-  echo "$0 [options]"
-  echo " -image <path to file>                  path to VM image"
-  echo " -device <device>                       NBD device to use (default: $FS_DEVICE)"
-  echo " -fs-id <id>                            optional ID of the device containing the root filesystem (e.g., /dev/sdaX) (default: none)"
-  echo " -out-image <path to file>              output path to verity image (default: $DST_IMAGE)"
-  echo " -out-hash-tree <path to file>          output path to device hash tree (default: $HASH_TREE)"
-  echo " -out-root-hash <path to file>          output path to root hash (default: $ROOT_HASH)"
-  exit
+	if [ -n "$NON_INTERACTIVE" ]; then
+		return
+	fi
+
+	ROOT_FS_FOUND=""
+	if [ -e $SRC_ROOT_FS_DEVICE ];then
+		echo "Root filesystem found: $SRC_ROOT_FS_DEVICE"
+		while [ -z "$ROOT_FS_FOUND" ]; do
+			read -p "Do you confirm that this is correct? (y/n): " choice
+			case "$choice" in 
+			y|Y ) ROOT_FS_FOUND="1" ;;
+			n|N ) ROOT_FS_FOUND="0" ;;
+			* ) echo "Invalid choice. Please enter 'y' or 'n'.";;
+			esac
+		done
+	else
+		echo "Failed to identify root filesystem $SRC_ROOT_FS_DEVICE."
+	fi
+
+	if [ "$ROOT_FS_FOUND" = "0" ]; then
+		# show fdisk output to user
+		sudo fdisk $SRC_DEVICE -l
+		read -p "Enter device containing the root filesystem: " SRC_ROOT_FS_DEVICE
+		if [ ! -e $SRC_ROOT_FS_DEVICE ];then
+			echo "Could not find root filesystem."
+			exit 1
+		fi
+	fi
 }
 
 prepare_verity_fs() {
@@ -74,15 +97,25 @@ prepare_verity_fs() {
 	sudo mkdir -p $DST_FOLDER/home $DST_FOLDER/etc $DST_FOLDER/var $DST_FOLDER/tmp
 }
 
+usage() {
+  echo "$0 [options]"
+  echo " -y                                     non-interactive option (do not ask if rootfs device is correct)"
+  echo " -image <path to file>                  path to VM image"
+  echo " -device <device>                       NBD device to use (default: $FS_DEVICE)"
+  echo " -out-image <path to file>              output path to verity image (default: $DST_IMAGE)"
+  echo " -out-hash-tree <path to file>          output path to device hash tree (default: $HASH_TREE)"
+  echo " -out-root-hash <path to file>          output path to root hash (default: $ROOT_HASH)"
+  exit
+}
+
 while [ -n "$1" ]; do
 	case "$1" in
+		-y) NON_INTERACTIVE="1"
+			;;
 		-image) SRC_IMAGE="$2"
 			shift
 			;;
 		-device) FS_DEVICE="$2"
-			shift
-			;;
-		-fs-id) FS_DEVICE_ID="p$2"
 			shift
 			;;
 		-out-image) DST_IMAGE="$2"
@@ -112,11 +145,15 @@ echo "Opening devices.."
 sudo qemu-nbd --connect=$SRC_DEVICE $SRC_IMAGE
 sudo qemu-nbd --connect=$DST_DEVICE $DST_IMAGE
 
+echo "Finding root filesystem.."
+find_root_fs_device
+echo "Rootfs device selected: $SRC_ROOT_FS_DEVICE"
+
 echo "Creating ext4 partition on output image.."
 sudo mkfs.ext4 $DST_DEVICE
 
 echo "Mounting images.."
-sudo mount $SRC_DEVICE$FS_DEVICE_ID $SRC_FOLDER 
+sudo mount $SRC_ROOT_FS_DEVICE $SRC_FOLDER 
 sudo mount $DST_DEVICE $DST_FOLDER
 
 echo "Copying files.."

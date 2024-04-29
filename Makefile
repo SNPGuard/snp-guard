@@ -73,7 +73,7 @@ create_new_vm:
 
 setup_verity:
 	mkdir -p $(BUILD_DIR)/verity
-	./guest-vm/setup_verity.sh -image $(IMAGE) -fs-id 1 -out-image $(VERITY_IMAGE) -out-hash-tree $(VERITY_HASH_TREE) -out-root-hash $(VERITY_ROOT_HASH)
+	./guest-vm/setup_verity.sh -y -image $(IMAGE) -out-image $(VERITY_IMAGE) -out-hash-tree $(VERITY_HASH_TREE) -out-root-hash $(VERITY_ROOT_HASH)
 
 init_dir:
 	mkdir -p $(BUILD_DIR)
