@@ -3,3 +3,5 @@ build
 tools/attestation_server/target
 AMDSEV/
 build.env
+stdout.log
+monitor

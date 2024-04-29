@@ -32,8 +32,9 @@ if [ -z "$SEV_TOOLCHAIN_PATH" ];then
 	exit 1
 fi
 
-UEFI_PATH="$SEV_TOOLCHAIN_PATH/share/qemu"
-DEFAULT_UEFI_PATH=$UEFI_PATH
+UEFI_PATH="$SEV_TOOLCHAIN_PATH/share/qemu/"
+UEFI_CODE=""
+UEFI_VARS=""
 
 usage() {
 	echo "$0 [options]"
@@ -152,7 +153,7 @@ while [ -n "$1" ]; do
 		-cpu)		CPU_MODEL="$2"
 				shift
 				;;
-		-bios)          UEFI_PATH="$2"
+		-bios)          UEFI_CODE="$2"
 				shift
 				;;
 		-allow-debug)   ALLOW_DEBUG="1"
@@ -213,9 +214,9 @@ if [ -f "$TOML_CONFIG" ]; then
 		SMP="$PARSE_RESULT"
 	fi
 
-	if [ "$DEFAULT_UEFI_PATH" = "$UEFI_PATH" ]; then
+	if [ -z "$UEFI_CODE" ]; then
 		parse_value_for_key "ovmf_file" "$TOML_CONFIG"
-	  DIRECT_BOOT_OVMF="$PARSE_RESULT"
+	  UEFI_CODE="$PARSE_RESULT"
 	fi
 
 	if [ -z "$KERNEL_FILE" ]; then
@@ -281,7 +282,7 @@ fi
 }
 
 
-if [ -z "$DIRECT_BOOT_OVMF" ]; then
+if [ -z "$UEFI_CODE" ]; then
 	TMP="$UEFI_PATH/OVMF_CODE.fd"
 	UEFI_CODE="$(readlink -e $TMP)"
 	[ -z "$UEFI_CODE" ] && {
@@ -338,18 +339,16 @@ add_opts "-no-reboot"
 # The OVMF binary, including the non-volatile variable store, appears as a
 # "normal" qemu drive on the host side, and it is exposed to the guest as a
 # persistent flash device.
-
-#case 1: user provided kernel + initrd -> use OVMF with hash table support to measure
-#kernel and initrd hashes
-if [ ${KERNEL_FILE} ] && [ ${INITRD_FILE} ]; then
-		if [ -z "$DIRECT_BOOT_OVMF" ]; then
-			DIR_BOOT_OVMF_TMP="$UEFI_PATH/DIRECT_BOOT_OVMF.fd"
-			DIRECT_BOOT_OVMF="$(readlink -e $DIR_BOOT_OVMF_TMP)"
-		fi
-	add_opts "-drive if=pflash,format=raw,unit=0,file=${DIRECT_BOOT_OVMF},readonly"
-else # case 2:regular boot
-	add_opts "-drive if=pflash,format=raw,unit=0,file=${UEFI_CODE},readonly"
-	add_opts "-drive if=pflash,format=raw,unit=1,file=${UEFI_VARS}"
+if [ "${SEV_SNP}" = 1 ]; then
+    add_opts "-bios ${UEFI_CODE}"
+	if [ -n "$UEFI_VARS" ]; then
+    	add_opts "-drive if=pflash,format=raw,unit=0,file=${UEFI_VARS}"
+	fi
+else
+    add_opts "-drive if=pflash,format=raw,unit=0,file=${UEFI_CODE},readonly"
+	if [ -n "$UEFI_VARS" ]; then
+    	add_opts "-drive if=pflash,format=raw,unit=1,file=${UEFI_VARS}"
+	fi
 fi
 
 # add CDROM if specified

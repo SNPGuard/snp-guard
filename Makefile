@@ -9,6 +9,7 @@ HEADERS_DEB       ?= $(SNP_DIR)/linux/guest/linux-headers-*.deb
 KERNEL_DEB        ?= $(SNP_DIR)/linux/guest/linux-image-*.deb
 
 OVMF              ?= $(BUILD_DIR)/snp-release/usr/local/share/qemu/DIRECT_BOOT_OVMF.fd
+POLICY            ?= 0x30000
 LOAD_CONFIG       ?= $(BUILD_DIR)/vm-config.toml
 KERNEL_DIR        ?= $(BUILD_DIR)/kernel
 KERNEL            ?= $(KERNEL_DIR)/boot/vmlinuz-*
@@ -29,20 +30,25 @@ VERITY_HASH_TREE  ?= $(BUILD_DIR)/verity/hash_tree.bin
 VERITY_ROOT_HASH  ?= $(BUILD_DIR)/verity/roothash.txt
 VERITY_PARAMS     ?= boot=verity verity_disk=/dev/sdb verity_roothash=$(shell cat $(VERITY_ROOT_HASH))
 
+QEMU_LAUNCH_SCRIPT = ./launch.sh
+QEMU_DEF_PARAMS    = -bios $(OVMF) -default-network -log $(BUILD_DIR)/stdout.log 
+QEMU_SNP_PARAMS    = -sev-snp -policy $(POLICY)
+QEMU_KERNEL_PARAMS = -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH)
+
 run:
-	cd $(SNP_DIR) && sudo ./launch-qemu.sh -hda $(IMAGE_PATH) -default-network
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) -hda $(IMAGE_PATH)
 
 run_setup:
-	cd $(SNP_DIR) && sudo ./launch-qemu.sh -hda $(IMAGE_PATH) -hdb $(CLOUD_CONFIG) -default-network
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) -hda $(IMAGE_PATH) -hdb $(CLOUD_CONFIG)
 
 run_sev_snp:
-	cd $(SNP_DIR) && sudo ./launch-qemu.sh -hda $(IMAGE_PATH) -sev-snp -default-network
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) -hda $(IMAGE_PATH)
 
 run_sev_snp_direct_boot:
-	cd $(SNP_DIR) && sudo ./launch-qemu.sh -hda $(IMAGE_PATH) -sev-snp -default-network -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -append "$(KERNEL_CMDLINE)"
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) $(QEMU_KERNEL_PARAMS) -hda $(IMAGE_PATH) -append "$(KERNEL_CMDLINE)"
 
 run_sev_snp_verity:
-	cd $(SNP_DIR) && sudo ./launch-qemu.sh -hda $(VERITY_IMAGE) -hdb $(VERITY_HASH_TREE) -sev-snp -default-network -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -append "$(KERNEL_CMDLINE) $(VERITY_PARAMS)"
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) $(QEMU_KERNEL_PARAMS) -hda $(VERITY_IMAGE) -hdb $(VERITY_HASH_TREE) -append "$(KERNEL_CMDLINE) $(VERITY_PARAMS)"
 
 install_dependencies:
 	./prepare-snp-dependencies.sh
