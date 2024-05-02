@@ -103,3 +103,5 @@ echo "Computing hash tree.."
 sudo veritysetup format $DST_DEVICE $HASH_TREE | grep Root | cut -f2 > $ROOT_HASH
 
 echo "Root hash: `cat $ROOT_HASH`"
+
+echo "All done!"

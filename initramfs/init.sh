@@ -98,10 +98,10 @@ boot_verity() {
     mount -o ro,noload /dev/mapper/root $MNT_DIR
 
     # create RAM filesystems (protected by SEV-SNP)
-    mount -t tmpfs -o size=2048M tmpfs $MNT_DIR/home
-    mount -t tmpfs -o size=128M tmpfs $MNT_DIR/etc
-    mount -t tmpfs -o size=1024M tmpfs $MNT_DIR/var
-    mount -t tmpfs -o size=128M tmpfs $MNT_DIR/tmp
+    mount -t tmpfs -o size=8192M tmpfs $MNT_DIR/home
+    mount -t tmpfs -o size=1024M tmpfs $MNT_DIR/etc
+    mount -t tmpfs -o size=2048M tmpfs $MNT_DIR/var
+    mount -t tmpfs -o size=1024M tmpfs $MNT_DIR/tmp
 
     # copy home, etc, var contents to RAM fs
     rsync -paxHAWXS $MNT_DIR/home_ro/ $MNT_DIR/home/

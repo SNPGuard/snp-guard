@@ -16,6 +16,7 @@ KERNEL            ?= $(KERNEL_DIR)/boot/vmlinuz-*
 INITRD            ?= $(BUILD_DIR)/initramfs.cpio.gz
 ROOT              ?= /dev/sda
 KERNEL_CMDLINE    ?= console=ttyS0 earlyprintk=serial root=$(ROOT)
+MEMORY            ?= 2048
 
 OVMF_PATH          = $(shell realpath $(OVMF))
 IMAGE_PATH         = $(shell realpath $(IMAGE))
@@ -38,7 +39,7 @@ INTEGRITY_IMAGE   ?= $(BUILD_DIR)/integrity/image.qcow2
 INTEGRITY_KEY     ?= $(BUILD_DIR)/integrity/dummy.key
 
 QEMU_LAUNCH_SCRIPT = ./launch.sh
-QEMU_DEF_PARAMS    = -bios $(OVMF) -default-network -log $(BUILD_DIR)/stdout.log 
+QEMU_DEF_PARAMS    = -bios $(OVMF) -default-network -log $(BUILD_DIR)/stdout.log -mem $(MEMORY)
 QEMU_SNP_PARAMS    = -sev-snp -policy $(POLICY)
 QEMU_KERNEL_PARAMS = -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH)
 
