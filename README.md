@@ -33,16 +33,20 @@ adaptation.
 
 ## Install dependencies
 
+For building the SNP packages and preparing the guest we need to install some
+basic dependencies such as Docker, Rust toolchain, and a few packages via `apt`.
+The `install_dependencies` makefile target automates the whole process, at the
+same time asking for user confirmation before proceeding with the installation.
+
 ```bash
-# Install dependencies
 make install_dependencies
 ```
 
 ## Build packages
 
-The first step consists of building customized versions of QEMU, OVMF and Linux
-kernel (both for host and guest) that have SNP-enabled capabilities. This is
-done by following the [AMD
+The first build step consists of building customized versions of QEMU, OVMF and
+Linux kernel (both for host and guest) that have SNP-enabled capabilities. This
+is done by following the [AMD
 manual](https://github.com/AMDESE/AMDSEV/tree/snp-latest).
 
 In this repository, we provide pre-built binaries and convenience scripts to
@@ -206,10 +210,6 @@ sudo dmesg | grep -i -e rmp -e sev
 ```
 
 ## Prepare guest 
-
-TODO: Steps 1-2 should be generic enough to be used by either Step 3A or 3B. Do
-not force the user to inject secrets at steps 1-2, so that they can be free to
-use the integrity-only workflow if they wish to do so.
 
 ### Step 0: Unpack kernel
 

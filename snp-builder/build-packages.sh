@@ -24,6 +24,8 @@ while [ -n "$1" ]; do
 	shift
 done
 
+mkdir -p $BUILD_DIR
+
 echo "Installing build dependencies for kernel, OVMF and QEMU"
 sudo apt update
 xargs -a $SCRIPT_DIR/dependencies.txt sudo apt install -y --no-install-recommends
