@@ -31,6 +31,8 @@ VERITY_ROOT_HASH  ?= $(BUILD_DIR)/verity/roothash.txt
 VERITY_PARAMS     ?= boot=verity verity_disk=/dev/sdb verity_roothash=$(shell cat $(VERITY_ROOT_HASH))
 
 LUKS_IMAGE        ?= $(BUILD_DIR)/luks/image.qcow2
+LUKS_KEY          ?=
+LUKS_PARAMS       ?= boot=encrypted
 
 INTEGRITY_IMAGE   ?= $(BUILD_DIR)/integrity/image.qcow2
 INTEGRITY_KEY     ?= $(BUILD_DIR)/integrity/dummy.key
@@ -55,6 +57,9 @@ run_sev_snp_direct_boot:
 run_sev_snp_verity:
 	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) $(QEMU_KERNEL_PARAMS) -hda $(VERITY_IMAGE) -hdb $(VERITY_HASH_TREE) -append "$(KERNEL_CMDLINE) $(VERITY_PARAMS)"
 
+run_sev_snp_luks:
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) $(QEMU_KERNEL_PARAMS) -hda $(LUKS_IMAGE) -append "$(KERNEL_CMDLINE) $(LUKS_PARAMS)"
+
 install_dependencies:
 	./prepare-snp-dependencies.sh
 
@@ -66,6 +71,7 @@ build_tools: build_attestation_server
 build_attestation_server:
 	cargo build --manifest-path=tools/attestation_server/Cargo.toml
 	cp ./tools/attestation_server/target/debug/server $(BUILD_DIR)/bin
+	cp ./tools/attestation_server/target/debug/client $(BUILD_DIR)/client
 
 initramfs_from_existing:
 	./initramfs/build-initramfs.sh -initrd $(INITRD_ORIG) -kernel-dir $(KERNEL_DIR) -init $(INIT_SCRIPT) -out $(INITRD)
@@ -88,6 +94,10 @@ setup_integrity:
 	mkdir -p $(BUILD_DIR)/integrity
 	echo test > $(BUILD_DIR)/integrity/dummy.key
 	./guest-vm/setup_integrity.sh -in $(IMAGE) -out $(INTEGRITY_IMAGE) -key $(INTEGRITY_KEY)
+
+
+attest_luks_vm:
+	$(BUILD_DIR)/client --disk-key $(LUKS_KEY) --vm-definition $(LOAD_CONFIG) --override-kernel-cmdline "$(KERNEL_CMDLINE) $(LUKS_PARAMS)" --dump-report 1
 
 init_dir:
 	mkdir -p $(BUILD_DIR)

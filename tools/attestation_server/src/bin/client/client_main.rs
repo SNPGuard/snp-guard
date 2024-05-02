@@ -43,6 +43,7 @@ struct Args {
     ///Config file used to compute the expected vm hash
     vm_definition: String,
 
+    #[arg(long)]
     ///Override the content of "kernel_cmdline" from the config while
     ///Useful to test one-off changes
     override_kernel_cmdline: Option<String>,

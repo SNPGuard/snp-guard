@@ -339,9 +339,6 @@ pub fn verify_report_signature(
     report: &AttestationReport,
     vcek_cert: Certificate,
 ) -> Result<bool, Whatever> {
-    if product_name != ProductName::Milan {
-        whatever!("for now only milan is implemented");
-    }
     let ark;
     let ask;
     match product_name {
