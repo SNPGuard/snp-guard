@@ -30,6 +30,11 @@ VERITY_HASH_TREE  ?= $(BUILD_DIR)/verity/hash_tree.bin
 VERITY_ROOT_HASH  ?= $(BUILD_DIR)/verity/roothash.txt
 VERITY_PARAMS     ?= boot=verity verity_disk=/dev/sdb verity_roothash=$(shell cat $(VERITY_ROOT_HASH))
 
+LUKS_IMAGE        ?= $(BUILD_DIR)/luks/image.qcow2
+
+INTEGRITY_IMAGE   ?= $(BUILD_DIR)/integrity/image.qcow2
+INTEGRITY_KEY     ?= $(BUILD_DIR)/integrity/dummy.key
+
 QEMU_LAUNCH_SCRIPT = ./launch.sh
 QEMU_DEF_PARAMS    = -bios $(OVMF) -default-network -log $(BUILD_DIR)/stdout.log 
 QEMU_SNP_PARAMS    = -sev-snp -policy $(POLICY)
@@ -74,6 +79,15 @@ create_new_vm:
 setup_verity:
 	mkdir -p $(BUILD_DIR)/verity
 	./guest-vm/setup_verity.sh -image $(IMAGE) -out-image $(VERITY_IMAGE) -out-hash-tree $(VERITY_HASH_TREE) -out-root-hash $(VERITY_ROOT_HASH)
+
+setup_luks:
+	mkdir -p $(BUILD_DIR)/luks
+	./guest-vm/setup_luks.sh -in $(IMAGE) -out $(LUKS_IMAGE)
+
+setup_integrity:
+	mkdir -p $(BUILD_DIR)/integrity
+	echo test > $(BUILD_DIR)/integrity/dummy.key
+	./guest-vm/setup_integrity.sh -in $(IMAGE) -out $(INTEGRITY_IMAGE) -key $(INTEGRITY_KEY)
 
 init_dir:
 	mkdir -p $(BUILD_DIR)

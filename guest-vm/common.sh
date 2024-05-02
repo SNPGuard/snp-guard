@@ -20,11 +20,18 @@ clean_up() {
     if [ -e "$SRC_FOLDER" ]; then
         echo "Unmounting $SRC_FOLDER"
         sudo umount -q "$SRC_FOLDER" 2>/dev/null || true
+        rm -rf $SRC_FOLDER
     fi 
 
     if [ -e "$DST_FOLDER" ]; then
         echo "Unmounting $DST_FOLDER"
         sudo umount -q "$DST_FOLDER" 2>/dev/null || true
+        rm -rf $DST_FOLDER
+    fi
+
+    if [ -e "/dev/mapper/snpguard_root" ]; then
+        echo "Closing mapper device"
+        sudo cryptsetup luksClose snpguard_root 2>/dev/null || true
     fi
 
     NEED_SLEEP=0
@@ -55,7 +62,7 @@ find_root_fs_device() {
 	fi
 
 	ROOT_FS_FOUND=""
-	if [ -e $SRC_ROOT_FS_DEVICE ];then
+	if [ -e "$SRC_ROOT_FS_DEVICE" ];then
 		echo "Root filesystem found: $SRC_ROOT_FS_DEVICE"
 		while [ -z "$ROOT_FS_FOUND" ]; do
 			read -p "Do you confirm that this is correct? (y/n): " choice
@@ -67,13 +74,14 @@ find_root_fs_device() {
 		done
 	else
 		echo "Failed to identify root filesystem $SRC_ROOT_FS_DEVICE."
+        ROOT_FS_FOUND="0"
 	fi
 
 	if [ "$ROOT_FS_FOUND" = "0" ]; then
 		# show fdisk output to user
 		sudo fdisk $SRC_DEVICE -l
 		read -p "Enter device containing the root filesystem: " SRC_ROOT_FS_DEVICE
-		if [ ! -e $SRC_ROOT_FS_DEVICE ];then
+		if [ ! -e "$SRC_ROOT_FS_DEVICE" ];then
 			echo "Could not find root filesystem."
 			exit 1
 		fi
