@@ -259,8 +259,6 @@ TODO: check if our workflows work with lvm2 (maybe need to patch init script)
 # Run VM for configuration
 make run IMAGE=<your_image>
 
-# get
-
 # Copy kernel and headers to guest
 scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:/home/<username>
 
@@ -286,7 +284,7 @@ scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:/home/<user
 **Guest configuration**
 
 ```bash
-# Get an IP address if you d not have it already
+# Get an IP address if you do not have it already
 sudo dhclient
 
 # install kernel and headers (copied before)
@@ -339,8 +337,8 @@ The following folders will be mounted as read-write `tmpfs`:
 - `/tmp` (max. 1GiB)
 
 The maximum sizes are arbitrarily chosen and defined in
-[init.sh](./initramfs/init.sh). Make sure that your guest VM fits these sizes.
-If you wish to change them, remember to also rebuild the
+[init.sh](./initramfs/init.sh#L101). Make sure that your guest VM fits these
+sizes. If you wish to change them, remember to also rebuild the
 [initramfs](#step-1-build-custom-initramfs).
 
 When the guest is launched using our `verity` workflow, the content of those
