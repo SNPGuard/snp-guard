@@ -6,15 +6,21 @@ ROOT_DIR=$(realpath .)
 SCRIPT_DIR=$ROOT_DIR/snp-builder
 BUILD_DIR=$ROOT_DIR/build
 
+COMMIT_DATE=$(cat `dirname $0`/commit-date)
+
 usage() {
   echo "$0 [options]"
-  echo " -amdsev <path to dir> Use local AMDSEV repository (e.g., for incremental builds)"
+  echo " -amdsev <path to dir>                   Use local AMDSEV repository (e.g., for incremental builds)"
+  echo " -commit-date <date>                     Date of the commits to check out (default: take from commit-date)"
   exit
 }
 
 while [ -n "$1" ]; do
 	case "$1" in
 		-amdsev) AMDPATH="$2"
+			shift
+			;;
+		-commit-date) COMMIT_DATE="$2"
 			shift
 			;;
 		*) 		usage
@@ -53,6 +59,7 @@ git restore . # remove changes that may have been made before
 git apply $SCRIPT_DIR/patches/*.patch
 
 echo "Building AMDSEV Repo. This might take a while"
+export LATEST_COMMIT_DATE=$COMMIT_DATE
 ./build.sh --package
 
 echo "Move SNP dir to root"
