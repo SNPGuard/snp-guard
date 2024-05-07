@@ -25,7 +25,7 @@ if [ "$(which cargo)" = "" ]; then
 fi
 
 echo "Installing build dependencies"
-confirm_execution "sudo apt update && sudo apt install make whois pv"
+confirm_execution "sudo apt update && sudo apt install make whois pv genisoimage"
 
 # TODO: see if we need part below and update if necessary
 
