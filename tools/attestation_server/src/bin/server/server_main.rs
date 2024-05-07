@@ -6,9 +6,10 @@ use attestation_server::{
     snp_attestation::{MockSNPAttestation, QuerySNPAttestation, SNPAttestation},
 };
 use ring::{
-    agreement::{self},
+    agreement::{self, EphemeralPrivateKey},
     rand,
 };
+use snafu::{whatever, ResultExt, Whatever};
 use tiny_http::{Request, Response, Server};
 
 fn wait_for_request(server: &Server) -> Request {
@@ -22,24 +23,27 @@ fn wait_for_request(server: &Server) -> Request {
     }
 }
 
-fn main() {
-    let mock_mode = match env::var("MOCK") {
-        Ok(_) => true,
-        Err(_) => false,
-    };
-    let listen = env::var("LISTEN").unwrap_or("0.0.0.0:80".to_string());
-    println!("Attestation server is listening on {}", listen);
-    let server = tiny_http::Server::http(listen).expect("Failed to start webserver");
+struct Config {
+    no_secret_injection: bool,
+    mock_mode: bool,
+    listen : String,
+}
 
-    //
-    //Phase1 : Client requests attestation report. We send our public key agreement key
-    //
+struct SecretInjectionParams {
+    nonce: u64,
+    eph_server_dh_key: EphemeralPrivateKey,
+}
+enum ServerState {
+    ///Ready to handle attestation report requests
+    Ready,
+    ///Send attestation report + public DH to client, waiting for response
+    WaitingForSecretInjection(SecretInjectionParams),
+}
 
-    let mut req = wait_for_request(&server);
-
-    println!("Request Meatadata: {:?}", req);
+///Fetch attestation report and generate key material the DH key deriviation used for secret injection
+fn send_report(mut req:  Request, config: &Config) -> Result<SecretInjectionParams, Whatever> {
     let att_req: AttestationRequest =
-        serde_json::from_reader(req.as_reader()).expect("failed to deserialize");
+        serde_json::from_reader(req.as_reader()).whatever_context("failed to deserialize")?;
     println!("Request Body: {:?}", att_req);
 
     println!("Requesting attestation report");
@@ -54,7 +58,7 @@ fn main() {
         .try_into()
         .expect("unexpected public key length");
 
-    let att_report = if mock_mode {
+    let att_report = if config.mock_mode {
         MockSNPAttestation::get_report(att_req.nonce, server_public_key)
             .expect("failed to get mock attestation reort")
     } else {
@@ -71,19 +75,25 @@ fn main() {
     let resp = Response::from_string(att_report_json).with_header(header);
     req.respond(resp).expect("failed to send response");
 
-    //
-    //Phase2: Client sends the encrypted disk encryption key as well as their public key agreement key
-    //
-    println!("Waiting for client to send wrapped disk encryption key");
-    let mut req = wait_for_request(&server);
-    println!("Received request");
+    Ok(SecretInjectionParams{
+        nonce: att_req.nonce,
+        eph_server_dh_key: server_private_key,
+    })
+}
+
+///Process secret injection request and write derived key to disk
+/// # Arguments
+/// - `req`: http request with the raw data
+/// - `key_material` : nonce from client + 
+fn process_injected_secret(mut req: Request, key_material: SecretInjectionParams) -> Result<(), Whatever> {
+    
     let wrapped_key: WrappedDiskKey =
-        serde_json::from_reader(req.as_reader()).expect("failed to deserialize");
+        serde_json::from_reader(req.as_reader()).whatever_context("failed to deserialize")?;
 
     let client_public_key =
         agreement::UnparsedPublicKey::new(&agreement::X25519, wrapped_key.client_public_key);
     let mut shared_secret = Vec::new();
-    agreement::agree_ephemeral(server_private_key, &client_public_key, |key_material| {
+    agreement::agree_ephemeral(key_material.eph_server_dh_key, &client_public_key, |key_material| {
         shared_secret
             .write_all(key_material)
             .expect("failed to store key material");
@@ -94,7 +104,7 @@ fn main() {
     .expect("failed to generate shared key");
 
     println!("Decrypted wrapped key");
-    let unwrapped_disk_key = aead_dec(&shared_secret, att_req.nonce, wrapped_key.wrapped_disk_key);
+    let unwrapped_disk_key = aead_dec(&shared_secret, key_material.nonce, wrapped_key.wrapped_disk_key);
     let unwrapped_disk_key =
         str::from_utf8(&unwrapped_disk_key).expect("failed to convert unwrapped key to string");
     println!("unwrapped_disk_key: {}", unwrapped_disk_key);
@@ -102,4 +112,43 @@ fn main() {
     out_file
         .write_all(unwrapped_disk_key.as_bytes())
         .expect("failed to write to file");
+
+    Ok(())
+}
+
+fn run(config: &Config) -> Result<(), Whatever> {
+    let mut state = ServerState::Ready;
+    let server = match tiny_http::Server::http(&config.listen) {
+        Ok(v) => v,
+        Err(e) => {whatever!("failed to start http server: {:#?}", e)},
+    };
+    loop {
+        let req = wait_for_request(&server);
+        match state {
+            ServerState::Ready => match send_report(req, config) {
+                Ok(secret_injectin_params) => {
+                    if !config.no_secret_injection {
+                        state = ServerState::WaitingForSecretInjection(secret_injectin_params)
+                    }
+                }
+                Err(e) => eprintln!("Error while serving attestation report: {:#?}", e),
+            },
+            ServerState::WaitingForSecretInjection(params) => {
+                if let Err(e) = process_injected_secret(req, params) {
+                    eprintln!("Error processing injected secret : {:#?}", e);
+                    eprintln!("Send another attestation report request to try again")
+                }
+                state = ServerState::Ready;
+            }
+        }
+    }
+}
+
+fn main() -> Result<(), Whatever>{
+        let config = Config{
+            no_secret_injection: env::var("NO_SECRET_INJECTION").is_ok(),
+        mock_mode: env::var("MOCK").is_ok(),
+        listen: env::var("LISTEN").unwrap_or("0.0.0.0:80".to_string()),
+    };
+    run(&config)
 }
