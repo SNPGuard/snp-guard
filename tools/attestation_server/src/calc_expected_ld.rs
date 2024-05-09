@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sev::firmware::guest::{GuestPolicy, PlatformInfo};
 use sev::firmware::host::TcbVersion;
-use sev::launch::snp::Policy;
 use sev::measurement::idblock_types::ID_BLK_ID_BYTES;
 use sev::measurement::{
     idblock_types::{FamilyId, ImageId},

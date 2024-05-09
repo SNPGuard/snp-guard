@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use base64::{engine::general_purpose, Engine};
 use openssl::sha::sha384;
 use reqwest::{blocking, redirect::Policy, Url};
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,34 @@ use sev::{
     measurement::idblock_types::{FamilyId, IdAuth, IdBlock, IdBlockLaunchDigest, SevEcdsaPubKey},
 };
 use snafu::{whatever, ResultExt, Whatever};
+
+
+///Parse the supplied data and also return a special representation
+///that is usefull for checking the attestation report
+pub fn parse_id_block_data(
+    id_block_raw: &[u8],
+    id_auth_block_raw: &[u8],
+) -> Result<(IdBlock, IdAuth, IDBLockReportData), Whatever> {
+    //decode id_block
+    let id_block_raw = general_purpose::STANDARD
+        .decode(&id_block_raw)
+        .whatever_context("failed to decode id block as base64")?;
+    let id_block: IdBlock =
+        bincode::deserialize(&id_block_raw).whatever_context("failed to bindecode id block")?;
+
+    //decode id_auth block
+    let id_auth_block_raw = general_purpose::STANDARD
+        .decode(&id_auth_block_raw)
+        .whatever_context("failed to decode id auth block as base64")?;
+    let id_auth_block: IdAuth = bincode::deserialize(&id_auth_block_raw)
+        .whatever_context("failed to bindecode id auth block")?;
+
+    let id_block_report_data: IDBLockReportData =
+        (id_block.clone(), id_auth_block.clone()).try_into()?;
+
+    Ok((id_block, id_auth_block, id_block_report_data))
+}
+
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
 ///Describes the CPU generation

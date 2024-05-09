@@ -134,21 +134,28 @@ fn run(config: &Config) -> Result<(), Whatever> {
                 Err(e) => eprintln!("Error while serving attestation report: {:#?}", e),
             },
             ServerState::WaitingForSecretInjection(params) => {
-                if let Err(e) = process_injected_secret(req, params) {
-                    eprintln!("Error processing injected secret : {:#?}", e);
-                    eprintln!("Send another attestation report request to try again")
+                match process_injected_secret(req, params) {
+                    Ok(_) => {
+                        eprintln!("Secret injection succeeded! Shutting down attestation server...");
+                        return Ok(());
+                    },
+                    Err(e) => {
+                        eprintln!("Error processing injected secret : {:#?}", e);
+                        eprintln!("Send another attestation report request to try again");
+                        state = ServerState::Ready;
+                    }
                 }
-                state = ServerState::Ready;
             }
         }
     }
 }
 
 fn main() -> Result<(), Whatever>{
-        let config = Config{
-            no_secret_injection: env::var("NO_SECRET_INJECTION").is_ok(),
+    let config = Config{
+        no_secret_injection: env::var("NO_SECRET_INJECTION").is_ok(),
         mock_mode: env::var("MOCK").is_ok(),
         listen: env::var("LISTEN").unwrap_or("0.0.0.0:80".to_string()),
     };
+    println!("Starting attestation server on {}",&config.listen);
     run(&config)
 }

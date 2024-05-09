@@ -1,0 +1,18 @@
+#
+# Repos/Branches for SEV-SNP support
+# These are snapshots of the official AMD repos as they are often in an unstable state
+# In addition, force pushing + rebasing makes it hard to use specific commits to ensure a stable snapshot
+#
+
+# hypervisor commit
+KERNEL_GIT_URL="https://github.com/SNPGuard/linux.git"
+KERNEL_HOST_BRANCH="snp-host-latest"
+KERNEL_GUEST_BRANCH="snp-guest-latest"
+
+# qemu commit
+QEMU_GIT_URL="https://github.com/SNPGuard/qemu.git"
+QEMU_BRANCH="snp-latest"
+
+# guest bios
+OVMF_GIT_URL="https://github.com/SNPGuard/ovmf.git"
+OVMF_BRANCH="snp-latest"

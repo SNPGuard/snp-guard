@@ -19,6 +19,6 @@ fn main() -> Result<(), Whatever> {
     
     let f = File::create(&args.out).whatever_context(format!("failed to create output file {}",&args.out))?;
     serde_json::to_writer(f, &report).whatever_context("failed to serialize report as json")?;
-    println!("Your result is at {}.\nCopy it to the host system and the the \"client\" binary to verify it, as described in the README", &args.out);
+    println!("Your result is at {}.\nCopy it to the host system and the \"verify_report\" binary to verify it, as described in the README", &args.out);
     Ok(())
 }

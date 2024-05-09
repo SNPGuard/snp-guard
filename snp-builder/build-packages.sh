@@ -6,12 +6,13 @@ ROOT_DIR=$(realpath .)
 SCRIPT_DIR=$ROOT_DIR/snp-builder
 BUILD_DIR=$ROOT_DIR/build
 
-COMMIT_DATE=$(cat `dirname $0`/commit-date)
+#If set to 1, use our forks for OVMF, QEMU and Linux kernel
+USE_STABLE_SNAPSHOT=0
 
 usage() {
   echo "$0 [options]"
   echo " -amdsev <path to dir>                   Use local AMDSEV repository (e.g., for incremental builds)"
-  echo " -commit-date <date>                     Date of the commits to check out (default: take from commit-date)"
+  echo " -use-stable-snapshots               	 If set, use our stable snapshots of the kernel, OVMF, and QEMU repos. We experienced frequent errors with AMD's upstream repos."
   exit
 }
 
@@ -20,11 +21,11 @@ while [ -n "$1" ]; do
 		-amdsev) AMDPATH="$2"
 			shift
 			;;
-		-commit-date) COMMIT_DATE="$2"
-			shift
+		-use-stable-snapshots) USE_STABLE_SNAPSHOT=1
 			;;
-		*) 		usage
-				;;
+		*)
+			usage
+			;;
 	esac
 
 	shift
@@ -48,6 +49,10 @@ rm -rf libslirp0.deb libslirp-dev.deb
 if [ -z "$AMDPATH" ]; then
 	AMDPATH=$BUILD_DIR/AMDSEV
     git clone https://github.com/AMDESE/AMDSEV.git --branch snp-latest --depth 1 $AMDPATH
+	if [[ $USE_STABLE_SNAPSHOT -eq 1 ]]; then
+		echo "Switching to stable snapshtos for kernel, qemu and OVMF"
+		cp  "$SCRIPT_DIR/snpguard-stable-commits.txt" "$AMDPATH/stable-commits"
+  	fi
 else
   echo "Using AMDSEV repository: $(realpath $AMDPATH)"
 fi
@@ -55,11 +60,8 @@ fi
 pushd $AMDPATH 2>/dev/null
 
 echo "Applying patches"
-git restore . # remove changes that may have been made before
 git apply $SCRIPT_DIR/patches/*.patch
 
-echo "Building AMDSEV Repo. This might take a while"
-export LATEST_COMMIT_DATE=$COMMIT_DATE
 ./build.sh --package
 
 echo "Move SNP dir to root"

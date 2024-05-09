@@ -11,8 +11,7 @@ use attestation_server::{
     req_resp_ds::{aead_enc, AttestationRequest, WrappedDiskKey},
     snp_attestation::ReportData,
     snp_validate_report::{
-        verify_and_check_report, verify_report_signature, CachingVCEKDownloader, IDBLockReportData,
-        ProductName,
+        parse_id_block_data, verify_and_check_report, verify_report_signature, CachingVCEKDownloader, IDBLockReportData, ProductName
     },
 };
 
@@ -27,7 +26,7 @@ use sev::{
     firmware::guest::AttestationReport,
     measurement::idblock_types::{IdAuth, IdBlock},
 };
-use snafu::{whatever, OptionExt, ResultExt, Whatever};
+use snafu::{whatever, ResultExt, Whatever};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -44,7 +43,7 @@ struct Args {
     vm_definition: String,
 
     #[arg(long)]
-    ///Override the content of "kernel_cmdline" from the config while
+    ///Override the content of "kernel_cmdline" from the config file
     ///Useful to test one-off changes
     override_kernel_cmdline: Option<String>,
 
@@ -124,7 +123,7 @@ fn run(args: Args) -> Result<(), Whatever> {
     let nonce = u64::from_le_bytes(buffer);
     let att_req = AttestationRequest { nonce };
     let client = Client::new();
-    println!("Requesting attestation report");
+    println!("Requesting attestation report from {}", &args.server_url);
     let resp: AttestationReport = client
         .post(&args.server_url)
         .json(&att_req)
@@ -234,28 +233,3 @@ fn run(args: Args) -> Result<(), Whatever> {
     Ok(())
 }
 
-///Parse the supplied data and also return a special representation
-///that is usefull for checking the attestation report
-fn parse_id_block_data(
-    id_block_raw: &[u8],
-    id_auth_block_raw: &[u8],
-) -> Result<(IdBlock, IdAuth, IDBLockReportData), Whatever> {
-    //decode id_block
-    let id_block_raw = general_purpose::STANDARD
-        .decode(&id_block_raw)
-        .whatever_context("failed to decode id block as base64")?;
-    let id_block: IdBlock =
-        bincode::deserialize(&id_block_raw).whatever_context("failed to bindecode id block")?;
-
-    //decode id_auth block
-    let id_auth_block_raw = general_purpose::STANDARD
-        .decode(&id_auth_block_raw)
-        .whatever_context("failed to decode id auth block as base64")?;
-    let id_auth_block: IdAuth = bincode::deserialize(&id_auth_block_raw)
-        .whatever_context("failed to bindecode id auth block")?;
-
-    let id_block_report_data: IDBLockReportData =
-        (id_block.clone(), id_auth_block.clone()).try_into()?;
-
-    Ok((id_block, id_auth_block, id_block_report_data))
-}
