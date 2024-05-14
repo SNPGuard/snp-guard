@@ -75,7 +75,7 @@ install_dependencies:
 unpack_kernel: init_dir
 	dpkg -x $(KERNEL_DEB) $(KERNEL_DIR)
 
-build_tools: build_attestation_server
+build_tools: init_dir build_attestation_server
 
 build_attestation_server:
 	cargo build --manifest-path=tools/attestation_server/Cargo.toml
@@ -85,7 +85,6 @@ build_attestation_server:
 	cp ./tools/attestation_server/target/debug/idblock-generator $(BUILD_DIR)/idblock-generator
 	cp ./tools/attestation_server/target/debug/sev-feature-info $(BUILD_DIR)/sev-feature-info
 	cp ./tools/attestation_server/target/debug/verify_report $(BUILD_DIR)/verify_report
-
 
 initramfs_from_existing:
 	./initramfs/build-initramfs.sh -initrd $(INITRD_ORIG) -kernel-dir $(KERNEL_DIR) -init $(INIT_SCRIPT) -out $(INITRD)

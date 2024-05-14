@@ -17,6 +17,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cd attestation_server && cargo build --verbose
+      run: cd tools/attestation_server && cargo build --verbose
     - name: Run tests
-      run: cd attestation_server && cargo test --verbose
+      run: cd tools/attestation_server && cargo test --verbose
