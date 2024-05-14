@@ -2,14 +2,13 @@ BUILD_DIR         ?= $(shell realpath build)
 GUEST_DIR         ?= $(BUILD_DIR)/guest
 SNP_DIR           ?= $(BUILD_DIR)/snp-release
 
-
-export SEV_TOOLCHAIN_PATH ?= $(BUILD_DIR)/snp-release/usr/local
-
 IMAGE             ?= $(GUEST_DIR)/sevsnptest.qcow2
 CLOUD_CONFIG      ?= $(GUEST_DIR)/config-blob.img
 
 HEADERS_DEB       ?= $(SNP_DIR)/linux/guest/linux-headers-*.deb
 KERNEL_DEB        ?= $(SNP_DIR)/linux/guest/linux-image-*.deb
+
+VM_CONF_TEMPLATE  ?= $(shell realpath ./tools/attestation_server/examples/vm-config.toml)
 
 #These config values are only used by the demo/debug targets ()
 #The luks and verity targets pick their config value from the toml VM config file. This file is used by both the launch script and the 
@@ -35,16 +34,17 @@ INIT_SCRIPT       ?= initramfs/init.sh
 VERITY_IMAGE      ?= $(BUILD_DIR)/verity/image.qcow2
 VERITY_HASH_TREE  ?= $(BUILD_DIR)/verity/hash_tree.bin
 VERITY_ROOT_HASH  ?= $(BUILD_DIR)/verity/roothash.txt
-
 VERITY_VM_CONFIG  ?= $(BUILD_DIR)/verity/vm-config-verity.toml
+VERITY_PARAMS     ?= boot=verity verity_disk=/dev/sdb
 
 LUKS_IMAGE        ?= $(BUILD_DIR)/luks/image.qcow2
 LUKS_VM_CONFIG    ?= $(BUILD_DIR)/luks/vm-config-LUKS.toml
-
+LUKS_PARAMS       ?= boot=encrypted
 
 INTEGRITY_IMAGE     ?= $(BUILD_DIR)/integrity/image.qcow2
 INTEGRITY_KEY       ?= $(BUILD_DIR)/integrity/dummy.key
 INTEGRITY_VM_CONFIG ?= $(BUILD_DIR)/integrity/vm-config-integrity.toml
+INTEGRITY_PARAMS    ?= boot=integrity
 
 QEMU_LAUNCH_SCRIPT = ./launch.sh
 QEMU_DEF_PARAMS    = -bios $(OVMF) -default-network -log $(BUILD_DIR)/stdout.log -mem $(MEMORY)
@@ -98,19 +98,18 @@ create_new_vm:
 setup_verity:
 	mkdir -p $(BUILD_DIR)/verity
 	./guest-vm/setup_verity.sh -image $(IMAGE) -out-image $(VERITY_IMAGE) -out-hash-tree $(VERITY_HASH_TREE) -out-root-hash $(VERITY_ROOT_HASH)
-	./guest-vm/create-vm-config.sh -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template ./tools/attestation_server/examples/vm-config.toml -cmdline "boot=verity verity_disk=/dev/sdb" -verity-hash-file $(VERITY_ROOT_HASH) -out $(VERITY_VM_CONFIG)
+	./guest-vm/create-vm-config.sh -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template $(VM_CONF_TEMPLATE) -cmdline "$(KERNEL_CMDLINE) $(VERITY_PARAMS) verity_roothash=$(shell cat $(VERITY_ROOT_HASH))" -out $(VERITY_VM_CONFIG)
 
 setup_luks:
 	mkdir -p $(BUILD_DIR)/luks
 	./guest-vm/setup_luks.sh -in $(IMAGE) -out $(LUKS_IMAGE)
-	./guest-vm/create-vm-config.sh -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template ./tools/attestation_server/examples/vm-config.toml -cmdline "boot=encrypted" -out $(LUKS_VM_CONFIG)
+	./guest-vm/create-vm-config.sh -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template $(VM_CONF_TEMPLATE) -cmdline "$(KERNEL_CMDLINE) $(LUKS_PARAMS)" -out $(LUKS_VM_CONFIG)
 
 setup_integrity:
 	mkdir -p $(BUILD_DIR)/integrity
 	echo test > $(BUILD_DIR)/integrity/dummy.key
 	./guest-vm/setup_integrity.sh -in $(IMAGE) -out $(INTEGRITY_IMAGE) -key $(INTEGRITY_KEY)
-	./guest-vm/create-vm-config.sh -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template ./tools/attestation_server/examples/vm-config.toml -cmdline "" -out $(INTEGRITY_VM_CONFIG)
-
+	./guest-vm/create-vm-config.sh -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template $(VM_CONF_TEMPLATE) -cmdline "$(KERNEL_CMDLINE) $(INTEGRITY_PARAMS)" -out $(INTEGRITY_VM_CONFIG)
 
 attest_luks_vm:
 	$(BUILD_DIR)/client --disk-key $(LUKS_KEY) --vm-definition $(LUKS_VM_CONFIG) --dump-report $(BUILD_DIR)/luks/attestation_report.json

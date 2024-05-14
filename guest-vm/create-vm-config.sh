@@ -9,25 +9,20 @@ set -e
 OVMF_PATH=
 KERNEL_PATH=
 INITRD_PATH=
-OUT_PATH=
+OUT_PATH="./build/vm-config.toml"
 KERNEL_CMDLINE=
 TEMPLATE_PATH=
 VERITY_HASH_FILE=
-DEFAULT_OUT_PATH="./build/vm-config"
 
 usage() {
   echo "$0 [options]"
   echo ""
-  echo "-ovmf   <path to DIRECT_BOOT_OVMF.fd> [Mandatory]"
-  echo "-kernel <path to vmlinuz>             [Mandatory]"
-  echo "-initrd <path to initramfs.cpio.gz>   [Mandatory]"
-  echo "-template <path to config template    [Mandatory]"
-  echo "    See tools/attestation_server/examples "
-  echo "-verity-hash-file <path to file with verity root hash> [Optional]"
-  echo "  Due to makefile restrictions we need to read this from the shell script :("
-  echo "-cmdline kernel cmdline parameters    [Optional]"
-  echo "    E.g. to configure encrypted or dm-verity mode"
-  echo "-out    <path to store config at>     [Defaults to $DEFAULT_OUT_PATH-{VERITY,LUKS}.toml]"
+  echo "-ovmf <path>                          Path to OVMF binary         [Mandatory]"
+  echo "-kernel <path>                        Path to kernel file         [Mandatory]"
+  echo "-initrd <path>                        Path to initrd file         [Mandatory]"
+  echo "-template <path>                      Path to config template     [Mandatory]"
+  echo "-cmdline <string>                     Kernel cmdline parameters   [Optional]"
+  echo "-out <path>                           Output config file (Default: $OUT_PATH)"
   echo ""
   exit
 }
@@ -35,8 +30,6 @@ usage() {
 if [ $# -eq 0 ]; then
   usage
 fi
-
-
 
 while [ -n "$1" ]; do
   case "$1" in
@@ -68,11 +61,6 @@ while [ -n "$1" ]; do
   esac
   shift
 done
-
-if [[ "$OUT_PATH" == "" ]]; then
-    OUT_PATH="$DEFAULT_OUT_PATH-$MODE.toml"
-fi
-
 
 cp "$TEMPLATE_PATH" "$OUT_PATH"
 sed -i "\@ovmf_file@c ovmf_file = \"${OVMF_PATH}\"" "$OUT_PATH"

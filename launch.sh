@@ -19,19 +19,12 @@ CERTS_PATH=
 # linked to cli flag
 ENABLE_ID_BLOCK=
 
-
-
 SEV="0"
 SEV_ES="0"
 SEV_SNP="0"
 USE_GDB="0"
 
-
-if [ -z "$SEV_TOOLCHAIN_PATH" ];then
-	echo "Please specify the path to the SEV toolchain in the SEV_TOOLCHAIN_PATH env var. If you used the official AMD repo, point this to \"<path to AMDSEV>/usr/local\" "
-	exit 1
-fi
-
+SEV_TOOLCHAIN_PATH="build/snp-release/usr/local"
 UEFI_PATH="$SEV_TOOLCHAIN_PATH/share/qemu"
 DEFAULT_UEFI_PATH=$UEFI_PATH
 
@@ -413,17 +406,14 @@ if [ ${SEV} = "1" ]; then
 		#the following if statements might add some more options, depending on config flags
 		SNP_OPTS_BUILDER="-object sev-snp-guest,id=sev0,policy=${SEV_POLICY},cbitpos=${CBITPOS},reduced-phys-bits=1"
 
-		echo "certs"
 		if [ -n "$CERTS_PATH" ]; then
 			SNP_OPTS_BUILDER+=",certs-path=${CERTS_PATH}"
 		fi
 
-		echo "use id"
 		if [ -n "$USE_ID_AND_AUTH" ]; then
 			SNP_OPTS_BUILDER+=",id-block=$(cat $ID_BLOCK_FILE),id-auth=$(cat $ID_AUTH_FILE),auth-key-enabled=true"
 		fi
 
-		echo "host data"
 		if [ -n "$HOST_DATA_FILE" ]; then
 			SNP_OPTS_BUILDER+=",host-data=$(cat $HOST_DATA_FILE)"
 		fi
