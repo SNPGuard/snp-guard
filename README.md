@@ -53,9 +53,18 @@ In this repository, we provide pre-built binaries and convenience scripts to
 automate the process. Below, we give three different options, from the most
 automated (and quickest) to the most manual (and slowest) way.
 
-### Option 1: Download pre-built packages
-**TODO** @luca : Update this to the "use-stable-snapshots" version
+**Note:** The AMD forks of QEMU, OVMF and Linux are subject to frequent changes
+and rebases, thus commits are not stable. We also noticed that some versions
+include changes in the SEV-SNP VMSA, which might break attestation due to
+mismatched launch measurements. For this reason, we provide a stable snapshot of
+these repositories in [our
+organization](https://github.com/orgs/SNPGuard/repositories) that can be used to
+build the SEV-SNP toolchain. Each of the options below can be configured to use
+our snapshots, and we recommend to use them for the time being. This is only a
+temporary workaround as we expect that soon the changes in the AMD forks will be
+upstreamed to the official repositories.
 
+### Option 1: Download pre-built packages
 
 We provide pre-built packages as releases in our repository. Such packages have
 been built using our Option 2 below.
@@ -73,7 +82,6 @@ tar -xf snp-release.tar.gz
 ```
 
 ### Option 2: Build with Docker
-**TODO** @gianluca : How do we integrate the "use-stable-snapshots" build here?
 
 Here, we create a Docker image that contains all the required dependencies, and
 then we run a container in detached mode that builds the actual QEMU, OVMF, and
@@ -89,7 +97,8 @@ cd snp-builder
 make image
 
 # Run container in the background (it can take several hours to complete)
-make build
+# Without USE_STABLE_SNAPSHOTS=1, the script will use the AMD upstream repos
+make build USE_STABLE_SNAPSHOTS=1
 
 # Fetch archive from the container
 # note: you should wait until the container has exited successfully. Otherwise, this command will fail

@@ -34,6 +34,11 @@ cd AMDSEV
 echo "Applying patches.."
 git apply ../patches/*.patch
 
+if [ "$USE_STABLE_SNAPSHOTS" = "1" ]; then
+    echo "Switching to stable snapshots for kernel, qemu and OVMF"
+    cp ../stable-commits.txt stable-commits
+fi
+
 echo "Building packages.."
 ./build.sh
 

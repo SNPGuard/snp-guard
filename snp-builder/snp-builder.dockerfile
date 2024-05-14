@@ -19,6 +19,9 @@ RUN wget $LIBSLIRP -O libslirp0.deb \
 # copy patches
 COPY patches/ patches/
 
+# copy stable commits
+COPY snpguard-stable-commits.txt stable-commits.txt
+
 # copy run script
 COPY run.sh .
 
