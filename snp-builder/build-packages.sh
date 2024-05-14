@@ -12,7 +12,7 @@ USE_STABLE_SNAPSHOT=0
 usage() {
   echo "$0 [options]"
   echo " -amdsev <path to dir>                   Use local AMDSEV repository (e.g., for incremental builds)"
-  echo " -use-stable-snapshots               	 If set, use our stable snapshots of the kernel, OVMF, and QEMU repos. We experienced frequent errors with AMD's upstream repos."
+  echo " -use-stable-snapshots               	 If set, use our stable snapshots of the kernel, OVMF, and QEMU repos"
   exit
 }
 

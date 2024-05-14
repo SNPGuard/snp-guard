@@ -89,9 +89,6 @@ cd snp-builder
 make image
 
 # Run container in the background (it can take several hours to complete)
-# You can set COMMIT_DATE to specify the date of the commits to check out
-# By default, it is set to the value of "snp-builder/commit-date"
-# You can set "today" to get the most recent commit
 make build
 
 # Fetch archive from the container
@@ -116,10 +113,8 @@ hours.
 
 ```bash
 # Run build script
-# Without -use-stable-snapshots, the script will use the AMD upstream repos. We found them to be quite
-# unstable and thus created a stable snapshot
+# Without -use-stable-snapshots, the script will use the AMD upstream repos
 ./snp-builder/build-packages.sh -use-stable-snapshots
-tar xf AMDSEV/snp-release*.tar.gz && mv snp-release* snp-release && rm -f ./snp-release/linux-image*dbg*.deb
 ```
 
 ## Prepare host

@@ -6,13 +6,11 @@ OUTPUT_PATH ?= ../build
 STATUS = $(shell docker inspect $(NAME) | grep Status | cut -d':' -f2 | sed 's/,//g' | xargs)
 EXIT_CODE = $(shell docker inspect $(NAME) | grep ExitCode | cut -d':' -f2 | sed 's/,//g' | xargs)
 
-COMMIT_DATE ?= $(shell cat commit-date)
-
 image:
 	docker build -t $(IMAGE) -f $(DOCKERFILE) .
 
 build: clean
-	docker run -v /boot:/boot -d --name $(NAME) -e LATEST_COMMIT_DATE=$(COMMIT_DATE) $(IMAGE)
+	docker run -v /boot:/boot -d --name $(NAME) $(IMAGE)
 
 get_files: check_status
 	docker cp $(NAME):/usr/src/app/snp-release.tar.gz $(OUTPUT_PATH)
