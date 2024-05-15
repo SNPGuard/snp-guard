@@ -91,6 +91,10 @@ boot_encrypted() {
 boot_verity() {
     echo "Booting dm-verity filesystem.."
 
+    # enable kernel module for accessing the PSP from the guest
+    # used for getting the attestation report
+    modprobe sev-guest
+
     # unlock verity device
     veritysetup open $ROOT root $VERITY_DISK $VERITY_ROOT_HASH
 
@@ -110,6 +114,10 @@ boot_verity() {
 
     # generate new SSH key for SSH server
     ssh-keygen -t ecdsa -f $MNT_DIR/etc/ssh/ssh_host_ecdsa_key -N "" >/dev/null 2>&1
+
+    # generate attestation report with SSH fingerprint as user data
+    FINGERPRINT=`ssh-keygen -lf $MNT_DIR/etc/ssh/ssh_host_ecdsa_key.pub | awk '{ print $2 }' | cut -d ":" -f 2`
+    /bin/get_report --report-data $FINGERPRINT --out $MNT_DIR/etc/report.json
 }
 
 #default launch config for sev uses virto as device driver
