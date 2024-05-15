@@ -47,27 +47,28 @@ INTEGRITY_VM_CONFIG ?= $(BUILD_DIR)/integrity/vm-config-integrity.toml
 INTEGRITY_PARAMS    ?= boot=integrity
 
 QEMU_LAUNCH_SCRIPT = ./launch.sh
-QEMU_DEF_PARAMS    = -bios $(OVMF) -default-network -log $(BUILD_DIR)/stdout.log -mem $(MEMORY)
-QEMU_SNP_PARAMS    = -sev-snp -policy $(POLICY)
-QEMU_KERNEL_PARAMS = -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH)
+QEMU_DEF_PARAMS    = -default-network -log $(BUILD_DIR)/stdout.log -mem $(MEMORY)
+QEMU_EXTRA_PARAMS  = -bios $(OVMF) -policy $(POLICY)
+QEMU_SNP_PARAMS    = -sev-snp
+QEMU_KERNEL_PARAMS = -append "$(KERNEL_CMDLINE)"
 
 run:
-	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) -hda $(IMAGE_PATH)
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_EXTRA_PARAMS) -hda $(IMAGE_PATH)
 
 run_setup:
-	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) -hda $(IMAGE_PATH) -hdb $(CLOUD_CONFIG)
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_EXTRA_PARAMS) -hda $(IMAGE_PATH) -hdb $(CLOUD_CONFIG)
 
 run_sev_snp:
-	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) -hda $(IMAGE_PATH)
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_EXTRA_PARAMS) $(QEMU_SNP_PARAMS) -hda $(IMAGE_PATH)
 
 run_sev_snp_direct_boot:
-	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) $(QEMU_KERNEL_PARAMS) -hda $(IMAGE_PATH) -append "$(KERNEL_CMDLINE)"
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) $(QEMU_KERNEL_PARAMS) -hda $(IMAGE_PATH) -load-config $(LOAD_CONFIG)
 
 run_sev_snp_verity:
-	sudo -E $(QEMU_LAUNCH_SCRIPT) -sev-snp -hda $(VERITY_IMAGE) -hdb $(VERITY_HASH_TREE) -load-config $(VERITY_VM_CONFIG)
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) -hda $(VERITY_IMAGE) -hdb $(VERITY_HASH_TREE) -load-config $(VERITY_VM_CONFIG)
 
 run_sev_snp_luks:
-	sudo -E $(QEMU_LAUNCH_SCRIPT)  -sev-snp -hda $(LUKS_IMAGE) -load-config $(LUKS_VM_CONFIG)
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) -hda $(LUKS_IMAGE) -load-config $(LUKS_VM_CONFIG)
 
 install_dependencies:
 	./prepare-snp-dependencies.sh
