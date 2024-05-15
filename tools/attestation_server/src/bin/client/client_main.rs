@@ -1,7 +1,6 @@
 //! Tool for the VM Owner to verify the attestation report at runtime and securely
 //! provision a disk encryption key to the VM
 use std::{
-    env,
     fs::{self, File},
     io::Write,
 };
@@ -11,11 +10,10 @@ use attestation_server::{
     req_resp_ds::{aead_enc, AttestationRequest, WrappedDiskKey},
     snp_attestation::ReportData,
     snp_validate_report::{
-        parse_id_block_data, verify_and_check_report, verify_report_signature, CachingVCEKDownloader, IDBLockReportData, ProductName
+        parse_id_block_data, verify_and_check_report, CachingVCEKDownloader
     },
 };
 
-use base64::{engine::general_purpose, Engine};
 use clap::Parser;
 use reqwest::blocking::Client;
 use ring::{
@@ -24,7 +22,6 @@ use ring::{
 };
 use sev::{
     firmware::guest::AttestationReport,
-    measurement::idblock_types::{IdAuth, IdBlock},
 };
 use snafu::{whatever, ResultExt, Whatever};
 

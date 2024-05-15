@@ -7,7 +7,7 @@ use std::{
 
 use base64::{engine::general_purpose, Engine};
 use openssl::sha::sha384;
-use reqwest::{blocking, redirect::Policy, Url};
+use reqwest::{blocking, Url};
 use serde::{Deserialize, Serialize};
 use sev::{
     certs::snp::{
@@ -18,7 +18,7 @@ use sev::{
         guest::{AttestationReport, GuestPolicy, PlatformInfo},
         host::TcbVersion,
     },
-    measurement::idblock_types::{FamilyId, IdAuth, IdBlock, IdBlockLaunchDigest, SevEcdsaPubKey},
+    measurement::idblock_types::{IdAuth, IdBlock, SevEcdsaPubKey},
 };
 use snafu::{whatever, ResultExt, Whatever};
 

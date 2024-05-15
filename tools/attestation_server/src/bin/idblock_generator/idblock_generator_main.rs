@@ -11,7 +11,6 @@ use clap::Parser;
 use snafu::{ResultExt, Whatever};
 
 use sev::{
-    firmware::guest::GuestPolicy,
     measurement::{
         idblock::snp_calculate_id,
         idblock_types::{FamilyId, IdBlockLaunchDigest, IdMeasurements, ImageId},

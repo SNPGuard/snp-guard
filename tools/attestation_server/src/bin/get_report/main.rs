@@ -1,21 +1,38 @@
-use std::fs::{self, File};
+use std::fs::{File};
 
-use attestation_server::snp_attestation::ReportData;
 use clap::Parser;
 use sev::firmware::guest::Firmware;
 use snafu::{ResultExt, Whatever};
+use base64::{engine::general_purpose, Engine};
 
 #[derive(Parser, Debug)]
 struct Args {
+    /// Path to output file
     #[arg(long, default_value = "attestation_report.json")]
     out: String,
+
+    /// Optional 64-byte data to pass to the report, encoded in base64
+    #[arg(long, default_value = "")]
+    report_data: String,
 }
 
 fn main() -> Result<(), Whatever> {
     let args = Args::parse();
 
+    let report_data_raw = general_purpose::STANDARD_NO_PAD
+        .decode(&args.report_data)
+        .whatever_context("failed to decode report_data as base64")?;
+    let len = report_data_raw.len();
+
+    if len > 64 {
+        panic!("Report data length should be <= 64 bytes!");
+    }
+
+    let mut report_data = [0u8; 64];
+    report_data[..len].copy_from_slice(&report_data_raw);
+    
     let mut fw = Firmware::open().whatever_context("failed to open sev firmware device. Is this a SEV-SNP guest?")?;
-    let report = fw.get_report(None, None, None).whatever_context("error getting report from firmware device")?;
+    let report = fw.get_report(None, Some(report_data), None).whatever_context("error getting report from firmware device")?;
     
     let f = File::create(&args.out).whatever_context(format!("failed to create output file {}",&args.out))?;
     serde_json::to_writer(f, &report).whatever_context("failed to serialize report as json")?;

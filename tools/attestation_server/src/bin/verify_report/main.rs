@@ -1,9 +1,10 @@
 use std::fs::{self, File};
 
-use attestation_server::{calc_expected_ld::VMDescription, snp_attestation::ReportData, snp_validate_report::{parse_id_block_data, verify_and_check_report, CachingVCEKDownloader}};
+use attestation_server::{calc_expected_ld::VMDescription, snp_validate_report::{parse_id_block_data, verify_and_check_report, CachingVCEKDownloader}};
 use clap::Parser;
 use sev::firmware::guest::AttestationReport;
-use snafu::{ResultExt, Whatever};
+use snafu::{whatever, ResultExt, Whatever};
+use base64::{engine::general_purpose, Engine};
 
 #[derive(Parser,Debug)]
 struct Args {
@@ -30,6 +31,10 @@ struct Args {
     ///that the attestation report contains the corresponding data. If used, you also need to
     ///specify `id_block_path`
     author_block_path: Option<String>,
+
+    /// report data field, encoded in base64
+    #[arg(long, default_value = "")]
+    report_data: String,
 }
 fn main() -> Result<(), Whatever> {
 
@@ -74,6 +79,17 @@ fn main() -> Result<(), Whatever> {
         id_data = None;
     }
 
+    let report_data_raw = general_purpose::STANDARD_NO_PAD
+        .decode(&args.report_data)
+        .whatever_context("failed to decode report_data as base64")?;
+    let len = report_data_raw.len();
+
+    if len > 64 {
+        panic!("Report data length should be <= 64 bytes!");
+    }
+
+    let mut report_data = [0u8; 64];
+    report_data[..len].copy_from_slice(&report_data_raw);
 
     //
     // Validate
@@ -91,7 +107,21 @@ fn main() -> Result<(), Whatever> {
         .expect("failed to get vcek cert");
 
     //Veryfing content
-    let dummy_report_data_validator = |_: [u8; 64]| {
+    let report_data_validator = |vm_data: [u8; 64]| {
+        let report_data_b64 = general_purpose::STANDARD_NO_PAD
+            .encode(&vm_data);
+
+        if args.report_data.is_empty() {
+            // just print it for info
+            println!("Report data: {}", report_data_b64);
+        } else {
+            // actually validate
+            if report_data != vm_data {
+                whatever!(
+                    "Report data does not match expected one",
+                );
+            }
+        }
         Ok(())
     };
     let id_block_data = if let Some((_, _, v)) = id_data {
@@ -108,7 +138,7 @@ fn main() -> Result<(), Whatever> {
         Some(vm_description.guest_policy),
         Some(vm_description.min_commited_tcb),
         Some(vm_description.platform_info),
-        Some(dummy_report_data_validator),
+        Some(report_data_validator),
         None, //We don't use host data right now
         Some(expected_ld),
     )
