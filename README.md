@@ -379,14 +379,23 @@ Then, we compute the `dm-verity` tree and root hash.
 make setup_verity
 ```
 
-To use a custom image, run
-```bash
-make setup_verity IMAGE=<path to your qcow2 image> 
-```
+Both commands will create a central VM config file at
+`build/verity/vm-config-verity.toml`. This file contains all settings that are
+relevant for the attestation process, e.g. the OVMF binary, the kernel command
+line or if debug mode is activated. It is used by both, our launch scripts and
+our verification tools to avoid configuration mismatches between the launch
+configuration and the configuration option used to compute the expected launch
+digest.
 
-Both commands will create a central VM config file at `build/verity/vm-config-verity.toml`.
-This file contains all settings that are relevant for the attestation process, e.g. the OVMF binary, the kernel command line or if debug mode is activated.
-It is used by both, our launch scripts and our verification tools to avoid configuration missmatches between the launch configuration and the configuration option used to compute the expected launch digest.
+The `setup_verity` command can be configured with the following parameters:
+- `IMAGE`: Path to the input VM image to use. By default, the path to the image
+  created with `make create_new_vm` will be used.
+- `CPU_FAMILY`: Host CPU family (e.g., `Milan` or `Genoa`). This is needed to
+  get the correct VCEK certificate when attesting the CVM. Default: `Milan`.
+- `CPUS`: Number of CPUs that the guest CVM will have. It is important to
+  specify the correct value because it will be reflected in the launch
+  measurement. Default: `1`.
+- `POLICY`: The SEV-SNP launch policy. Default: `0x30000`.
 
 ### Step 2: Launch guest
 
@@ -405,8 +414,9 @@ case QEMU will kill the guest.
 # by default, we use the image and merkle tree generated in the previous step
 make run_sev_snp_verity
 ```
-You can pass the following, optional env var parameters:
-- `VERITY_IMAGE`and `VERITY_HASH_TREE` to use a custom image and hash tree
+
+You can pass the following, optional parameters:
+- `VERITY_IMAGE` and `VERITY_HASH_TREE` to use a custom image and hash tree
 - `MEMORY` to specify the memory size in MB
 
 ### Step 3: Verify guest integrity
@@ -414,68 +424,107 @@ You can pass the following, optional env var parameters:
 Now, after the guest has booted, we can connect to it via SSH and get an
 attestation report to verify its integrity.
 
-To get the attestation report, first copy the `build/get_report` binary into the VM.
-Inside the VM, execute `sudo ./get_report` to store the report in a json file.
-To verify the report, copy it to the host and use `build/verify_report --input <path to obtained report file> --vm_definition <path to vm config file>`. If you are using the default setup, the VM config file is at `build/verity/vm-config-verity.toml`
+To get the attestation report, first copy the `build/get_report` binary into the
+VM. Inside the VM, execute `sudo ./get_report` to store the report in a json
+file. To verify the report, copy it to the host and use `build/verify_report
+--input <path to obtained report file> --vm_definition <path to vm config
+file>`. If you are using the default setup, the VM config file is at
+`build/verity/vm-config-verity.toml`.
 
 ## Run encrypted workflow
 
 ### Step 1: Prepare dm-crypt
-We need to  encrypt and integrity protect the root disk . 
-To perform both steps, use
+
+First, We need to encrypt and integrity protect the root disk. We use the
+[setup_luks.sh](./guest-vm/setup_luks.sh) script to create a new encrypted VM image and
+copy the root filesystem there along with the required modifications.
+
 ```bash
 make setup_luks
 ```
 
-Besides the VM image, this also creates our central VM config file at `build/luks/vm-config-verity.toml`.
-This file contains all settings that are relevant for the attestation process, e.g. the OVMF binary, the kernel command line or if debug mode is activated.
-It is used by both, our launch scripts and our verification tools to avoid configuration missmatches between the launch configuration and the configuration option used to compute the expected launch digest.
+Besides the VM image, this also creates our central VM config file at
+`build/luks/vm-config-verity.toml`. This file contains all settings that are
+relevant for the attestation process, e.g. the OVMF binary, the kernel command
+line or if debug mode is activated. It is used by both, our launch scripts and
+our verification tools to avoid configuration mismatches between the launch
+configuration and the configuration option used to compute the expected launch
+digest.
+
+The `setup_luks` command can be configured with the following parameters:
+- `IMAGE`: Path to the input VM image to use. By default, the path to the image
+  created with `make create_new_vm` will be used.
+- `CPU_FAMILY`: Host CPU family (e.g., `Milan` or `Genoa`). This is needed to
+  get the correct VCEK certificate when attesting the CVM. Default: `Milan`.
+- `CPUS`: Number of CPUs that the guest CVM will have. It is important to
+  specify the correct value because it will be reflected in the launch
+  measurement. Default: `1`.
+- `POLICY`: The SEV-SNP launch policy. Default: `0x30000`.
 
 ### Step 2: Launch guest
-To start the guest, use
+
+To start the guest, run the command below.
+
 ```bash
 make run_sev_snp_luks
 ```
 
 ### Step 3: Unlock encrypted filesystem
-Next, we verify the attestation report. If it is valid and matches the expected values, we securely inject the disk encryption key.
-To perform both steps run
+
+Next, we verify the attestation report. If it is valid and matches the expected
+values, we securely inject the disk encryption key. To perform both steps, run
+the command below:
+
 ```bash
-LUKS_KEY=<your disk encryption key> make  
+LUKS_KEY=<your disk encryption key> make attest_luks_vm
 ```
 
-## ID Block and an ID Auth block
-This is an optional feature of the SEV-SNP, attestation, might be useful for certain use cases. In can be used with any of the workflows
+## Optional features
 
-The ID block and an ID authentication information structure allow you to pass some user defined data to describe the
-VM, as well as the public parts of the ID key and the author key. All of this information will be reflected
-in the attestation report. In addition, the ID block will trigger a check of the launch digest and the guest policy before entering the VM.
-Otherwise, both would only be checked at runtime, during the attestation handshake described later in this document.
+### ID Block and an ID Auth block
 
-Use the following command to generate an ID block and id auth block files for usage with QEMU:
+This is an optional feature of the SEV-SNP, attestation, might be useful for
+certain use cases. In can be used with any of the workflows.
+
+The ID block and an ID authentication information structure allow you to pass
+some user defined data to describe the VM, as well as the public parts of the ID
+key and the author key. All of this information will be reflected in the
+attestation report. In addition, the ID block will trigger a check of the launch
+digest and the guest policy before entering the VM. Otherwise, both would only
+be checked at runtime, during the attestation handshake described later in this
+document.
+
+Use the following command to generate an ID block and id auth block files for
+usage with QEMU:
 ```bash
 # generate id_key.pem
 openssl ecparam -name secp384r1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out priv_id_key.pem
 # generate author_key.pem
 openssl ecparam -name secp384r1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out priv_author_key.pem
 # generate attestation data: id-block.base64 and id-block.base64
-./build/idblock-generator --vm-definition <path to your vm config file> --id-key-path priv_id_key.pem --auth-key-path priv_author_key.pem
+./build/bin/idblock-generator --vm-definition <path to your vm config file> --id-key-path priv_id_key.pem --auth-key-path priv_author_key.pem
 ```
 
-Both ID key and author key are user defined keys. The ID key is used to sign the ID block and the author key is used to sign the ID key.
-This enables you to use a different ID key for each VM while reflecting that all VMs belong to the same VM owner/author.
-Bot keys need to be in the PKCS8 PEM format.
+Both ID key and author key are user defined keys. The ID key is used to sign the
+ID block and the author key is used to sign the ID key. This enables you to use
+a different ID key for each VM while reflecting that all VMs belong to the same
+VM owner/author. Bot keys need to be in the PKCS8 PEM format.
 
-To use them, add `id-block <path to id-block.base64> -id-auth <path to auth-block.base64>` and when calling `launch.sh`.
-See e.g. the `run_sev_snp_luks` recipe in the [Makefile](Makefile) to get an idea how to manually call the launch script.
-
-
+To use them, add `id-block <path to id-block.base64> -id-auth <path to
+auth-block.base64>` and when calling `launch.sh`. See e.g. the
+`run_sev_snp_luks` recipe in the [Makefile](Makefile) to get an idea how to
+manually call the launch script.
 
 ## Tips and tricks
 
 ### SSH config
-If you frequently regenerate VMs with this repo you will get a lot of ssh remote host identification has changed errors, due to the different set of ssh keys used by every new VM.
-For local testing, it is fine to ignore host key checking by adding the following to your `~/.ssh/config` and using `ssh <user@>localtestvm` to connect to the VM.
+
+If you frequently regenerate VMs with this repo you will get a lot of ssh remote
+host identification has changed errors, due to the different set of ssh keys
+used by every new VM. For local testing, it is fine to ignore host key checking
+by adding the following to your `~/.ssh/config` and using `ssh
+<user@>localtestvm` to connect to the VM.
+
 ```
 Host localtestvm
 	ForwardAgent yes
@@ -486,5 +535,6 @@ Host localtestvm
 ```
 
 ## References
+
 - [1] https://github.com/AMDESE/AMDSEV/tree/snp-latest
 - [2] https://www.youtube.com/watch?v=4wZnl0njxm8

@@ -1,6 +1,7 @@
 BUILD_DIR         ?= $(shell realpath build)
 GUEST_DIR         ?= $(BUILD_DIR)/guest
 SNP_DIR           ?= $(BUILD_DIR)/snp-release
+BIN_DIR           ?= $(BUILD_DIR)/bin
 
 IMAGE             ?= $(GUEST_DIR)/sevsnptest.qcow2
 CLOUD_CONFIG      ?= $(GUEST_DIR)/config-blob.img
@@ -85,12 +86,12 @@ build_tools: init_dir build_attestation_server
 
 build_attestation_server:
 	cargo build --manifest-path=tools/attestation_server/Cargo.toml
-	cp ./tools/attestation_server/target/debug/server $(BUILD_DIR)/bin
-	cp ./tools/attestation_server/target/debug/client $(BUILD_DIR)/client
-	cp ./tools/attestation_server/target/debug/get_report $(BUILD_DIR)/get_report
-	cp ./tools/attestation_server/target/debug/idblock-generator $(BUILD_DIR)/idblock-generator
-	cp ./tools/attestation_server/target/debug/sev-feature-info $(BUILD_DIR)/sev-feature-info
-	cp ./tools/attestation_server/target/debug/verify_report $(BUILD_DIR)/verify_report
+	cp ./tools/attestation_server/target/debug/server $(BIN_DIR)
+	cp ./tools/attestation_server/target/debug/client $(BIN_DIR)
+	cp ./tools/attestation_server/target/debug/get_report $(BIN_DIR)
+	cp ./tools/attestation_server/target/debug/idblock-generator $(BIN_DIR)
+	cp ./tools/attestation_server/target/debug/sev-feature-info $(BIN_DIR)
+	cp ./tools/attestation_server/target/debug/verify_report $(BIN_DIR)
 
 initramfs_from_existing:
 	./initramfs/build-initramfs.sh -initrd $(INITRD_ORIG) -kernel-dir $(KERNEL_DIR) -init $(INIT_SCRIPT) -out $(INITRD)
@@ -118,7 +119,7 @@ setup_integrity:
 	./guest-vm/create-vm-config.sh $(VM_CONFIG_PARAMS) -cmdline "$(KERNEL_CMDLINE) $(INTEGRITY_PARAMS)" -out $(INTEGRITY_VM_CONFIG)
 
 attest_luks_vm:
-	$(BUILD_DIR)/client --disk-key $(LUKS_KEY) --vm-definition $(LUKS_VM_CONFIG) --dump-report $(BUILD_DIR)/luks/attestation_report.json
+	$(BIN_DIR)/client --disk-key $(LUKS_KEY) --vm-definition $(LUKS_VM_CONFIG) --dump-report $(BUILD_DIR)/luks/attestation_report.json
 
 init_dir:
 	mkdir -p $(BUILD_DIR)
