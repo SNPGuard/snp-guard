@@ -377,7 +377,7 @@ pub fn verify_report_signature(
         }
         ProductName::Genoa => {
             ark = genoa::ark().unwrap();
-            ask = genoa::ark().unwrap();
+            ask = genoa::ask().unwrap();
         }
     }
 
