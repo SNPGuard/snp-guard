@@ -99,7 +99,7 @@ create_new_vm:
 setup_verity:
 	mkdir -p $(BUILD_DIR)/verity
 	./guest-vm/setup_verity.sh -image $(IMAGE) -out-image $(VERITY_IMAGE) -out-hash-tree $(VERITY_HASH_TREE) -out-root-hash $(VERITY_ROOT_HASH)
-	./guest-vm/create-vm-config.sh -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template $(VM_CONF_TEMPLATE) -cmdline "$(KERNEL_CMDLINE) $(VERITY_PARAMS) verity_roothash=$(shell cat $(VERITY_ROOT_HASH))" -out $(VERITY_VM_CONFIG)
+	./guest-vm/create-vm-config.sh -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template $(VM_CONF_TEMPLATE) -cmdline "$(KERNEL_CMDLINE) $(VERITY_PARAMS) verity_roothash=`cat $(VERITY_ROOT_HASH)`" -out $(VERITY_VM_CONFIG)
 
 setup_luks:
 	mkdir -p $(BUILD_DIR)/luks
