@@ -14,14 +14,17 @@ VM_CONF_TEMPLATE  ?= $(shell realpath ./tools/attestation_server/examples/vm-con
 #The luks and verity targets pick their config value from the toml VM config file. This file is used by both the launch script and the 
 #tools that checks the attestation report. This ways, we want to avoid missmatches due to config missmatches
 OVMF              ?= $(BUILD_DIR)/snp-release/usr/local/share/qemu/DIRECT_BOOT_OVMF.fd
-POLICY            ?= 0x30000
 LOAD_CONFIG       ?= $(BUILD_DIR)/vm-config.toml
 KERNEL_DIR        ?= $(BUILD_DIR)/kernel
 KERNEL            ?= $(KERNEL_DIR)/boot/vmlinuz-*
 INITRD            ?= $(BUILD_DIR)/initramfs.cpio.gz
 ROOT              ?= /dev/sda
 KERNEL_CMDLINE    ?= console=ttyS0 earlyprintk=serial root=$(ROOT)
+
+CPU_FAMILY        ?= Milan
 MEMORY            ?= 2048
+CPUS			  ?= 1
+POLICY            ?= 0x30000
 
 OVMF_PATH          = $(shell realpath $(OVMF))
 IMAGE_PATH         = $(shell realpath $(IMAGE))
@@ -35,7 +38,7 @@ VERITY_IMAGE      ?= $(BUILD_DIR)/verity/image.qcow2
 VERITY_HASH_TREE  ?= $(BUILD_DIR)/verity/hash_tree.bin
 VERITY_ROOT_HASH  ?= $(BUILD_DIR)/verity/roothash.txt
 VERITY_VM_CONFIG  ?= $(BUILD_DIR)/verity/vm-config-verity.toml
-VERITY_PARAMS     ?= boot=verity verity_disk=/dev/sdb
+VERITY_PARAMS     ?= boot=verity verity_disk=/dev/sdb verity_roothash=`cat $(VERITY_ROOT_HASH)`
 
 LUKS_IMAGE        ?= $(BUILD_DIR)/luks/image.qcow2
 LUKS_VM_CONFIG    ?= $(BUILD_DIR)/luks/vm-config-LUKS.toml
@@ -47,10 +50,12 @@ INTEGRITY_VM_CONFIG ?= $(BUILD_DIR)/integrity/vm-config-integrity.toml
 INTEGRITY_PARAMS    ?= boot=integrity
 
 QEMU_LAUNCH_SCRIPT = ./launch.sh
-QEMU_DEF_PARAMS    = -default-network -log $(BUILD_DIR)/stdout.log -mem $(MEMORY)
+QEMU_DEF_PARAMS    = -default-network -log $(BUILD_DIR)/stdout.log -mem $(MEMORY) -smp $(CPUS)
 QEMU_EXTRA_PARAMS  = -bios $(OVMF) -policy $(POLICY)
 QEMU_SNP_PARAMS    = -sev-snp
 QEMU_KERNEL_PARAMS = -append "$(KERNEL_CMDLINE)"
+
+VM_CONFIG_PARAMS   = -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template $(VM_CONF_TEMPLATE) -cpu-family $(CPU_FAMILY) -cpus $(CPUS) -policy $(POLICY)
 
 run:
 	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_EXTRA_PARAMS) -hda $(IMAGE_PATH)
@@ -99,18 +104,18 @@ create_new_vm:
 setup_verity:
 	mkdir -p $(BUILD_DIR)/verity
 	./guest-vm/setup_verity.sh -image $(IMAGE) -out-image $(VERITY_IMAGE) -out-hash-tree $(VERITY_HASH_TREE) -out-root-hash $(VERITY_ROOT_HASH)
-	./guest-vm/create-vm-config.sh -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template $(VM_CONF_TEMPLATE) -cmdline "$(KERNEL_CMDLINE) $(VERITY_PARAMS) verity_roothash=`cat $(VERITY_ROOT_HASH)`" -out $(VERITY_VM_CONFIG)
+	./guest-vm/create-vm-config.sh $(VM_CONFIG_PARAMS) -cmdline "$(KERNEL_CMDLINE) $(VERITY_PARAMS)" -out $(VERITY_VM_CONFIG)
 
 setup_luks:
 	mkdir -p $(BUILD_DIR)/luks
 	./guest-vm/setup_luks.sh -in $(IMAGE) -out $(LUKS_IMAGE)
-	./guest-vm/create-vm-config.sh -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template $(VM_CONF_TEMPLATE) -cmdline "$(KERNEL_CMDLINE) $(LUKS_PARAMS)" -out $(LUKS_VM_CONFIG)
+	./guest-vm/create-vm-config.sh $(VM_CONFIG_PARAMS) -cmdline "$(KERNEL_CMDLINE) $(LUKS_PARAMS)" -out $(LUKS_VM_CONFIG)
 
 setup_integrity:
 	mkdir -p $(BUILD_DIR)/integrity
 	echo test > $(BUILD_DIR)/integrity/dummy.key
 	./guest-vm/setup_integrity.sh -in $(IMAGE) -out $(INTEGRITY_IMAGE) -key $(INTEGRITY_KEY)
-	./guest-vm/create-vm-config.sh -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template $(VM_CONF_TEMPLATE) -cmdline "$(KERNEL_CMDLINE) $(INTEGRITY_PARAMS)" -out $(INTEGRITY_VM_CONFIG)
+	./guest-vm/create-vm-config.sh $(VM_CONFIG_PARAMS) -cmdline "$(KERNEL_CMDLINE) $(INTEGRITY_PARAMS)" -out $(INTEGRITY_VM_CONFIG)
 
 attest_luks_vm:
 	$(BUILD_DIR)/client --disk-key $(LUKS_KEY) --vm-definition $(LUKS_VM_CONFIG) --dump-report $(BUILD_DIR)/luks/attestation_report.json

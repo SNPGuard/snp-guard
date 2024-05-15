@@ -12,7 +12,9 @@ INITRD_PATH=
 OUT_PATH="./build/vm-config.toml"
 KERNEL_CMDLINE=
 TEMPLATE_PATH=
-VERITY_HASH_FILE=
+CPU_FAMILY="Milan"
+CPUS="1"
+POLICY="0x30000"
 
 usage() {
   echo "$0 [options]"
@@ -22,6 +24,9 @@ usage() {
   echo "-initrd <path>                        Path to initrd file         [Mandatory]"
   echo "-template <path>                      Path to config template     [Mandatory]"
   echo "-cmdline <string>                     Kernel cmdline parameters   [Optional]"
+  echo "-cpu-family <string>                  Host CPU family (Default: $CPU_FAMILY)"
+  echo "-cpus <int>                           Number of CPUs (Default: $CPUS)"
+  echo "-policy <string>                      Policy (Default: $POLICY)"
   echo "-out <path>                           Output config file (Default: $OUT_PATH)"
   echo ""
   exit
@@ -42,13 +47,19 @@ while [ -n "$1" ]; do
     -initrd) INITRD_PATH="$2"
       shift
       ;;
-    -cmdline) KERNEL_CMDLINE="$2"
-      shift
-      ;;
     -template) TEMPLATE_PATH="$2"
       shift
       ;;
-    -verity-hash-file) VERITY_HASH_FILE="$2"
+    -cmdline) KERNEL_CMDLINE="$2"
+      shift
+      ;;
+    -cpu-family) CPU_FAMILY="$2"
+      shift
+      ;;
+    -cpus) CPUS="$2"
+      shift
+      ;;
+    -policy) POLICY="$2"
       shift
       ;;
     -out) OUT_PATH="$2"
@@ -67,12 +78,12 @@ sed -i "\@ovmf_file@c ovmf_file = \"${OVMF_PATH}\"" "$OUT_PATH"
 sed -i "\@kernel_file@c kernel_file = \"${KERNEL_PATH}\"" "$OUT_PATH"
 sed -i "\@initrd_file@c initrd_file = \"${INITRD_PATH}\"" "$OUT_PATH"
 
-if [[ "$VERITY_HASH_FILE" != "" ]]; then
-  KERNEL_CMDLINE="verity_roothash=$(cat $VERITY_HASH_FILE) $KERNEL_CMDLINE"
-fi
-
 if [[ "$KERNEL_CMDLINE" != "" ]]; then
     sed -i "\@kernel_cmdline@c kernel_cmdline = \"${KERNEL_CMDLINE}\"" "$OUT_PATH"
 fi
-     
+
+sed -i "\@host_cpu_family@c host_cpu_family = \"${CPU_FAMILY}\"" "$OUT_PATH"
+sed -i "\@vcpu_count@c vcpu_count = ${CPUS}" "$OUT_PATH"
+sed -i "\@guest_policy@c guest_policy = ${POLICY}" "$OUT_PATH"
+
 echo "Written config to $OUT_PATH"
