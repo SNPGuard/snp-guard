@@ -126,7 +126,6 @@ setup_integrity:
 
 attest_luks_vm:
 	$(BIN_DIR)/client --disk-key $(LUKS_KEY) --vm-definition $(LUKS_VM_CONFIG) --dump-report $(BUILD_DIR)/luks/attestation_report.json
-	# TODO: it would be nice if we could have something like the verity workflow for SSH
 	rm -rf $(SSH_HOSTS_FILE)
 
 attest_verity_vm:

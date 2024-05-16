@@ -498,6 +498,11 @@ the command below:
 LUKS_KEY=<your disk encryption key> make attest_luks_vm
 ```
 
+Unlike the integrity workflow, where we regenerate SSH keys, here the guest will
+still use its original keys. Therefore, it is up to the guest owner to verify
+the authenticity of future SSH connections by checking that the fingerprints
+match the expected values.
+
 ## Optional features
 
 ### ID Block and an ID Auth block
