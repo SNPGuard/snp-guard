@@ -27,6 +27,10 @@ MEMORY            ?= 2048
 CPUS			  ?= 1
 POLICY            ?= 0x30000
 
+VM_HOST           ?= localhost
+VM_PORT           ?= 2222
+VM_USER           ?= ubuntu
+
 OVMF_PATH          = $(shell realpath $(OVMF))
 IMAGE_PATH         = $(shell realpath $(IMAGE))
 KERNEL_PATH        = $(shell realpath $(KERNEL))
@@ -120,6 +124,9 @@ setup_integrity:
 
 attest_luks_vm:
 	$(BIN_DIR)/client --disk-key $(LUKS_KEY) --vm-definition $(LUKS_VM_CONFIG) --dump-report $(BUILD_DIR)/luks/attestation_report.json
+
+attest_verity_vm:
+	./attestation/attest-verity.sh -vm-config $(VERITY_VM_CONFIG) -host $(VM_HOST) -port $(VM_PORT) -user $(VM_USER)
 
 init_dir:
 	mkdir -p $(BUILD_DIR)
