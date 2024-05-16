@@ -30,6 +30,7 @@ POLICY            ?= 0x30000
 VM_HOST           ?= localhost
 VM_PORT           ?= 2222
 VM_USER           ?= ubuntu
+SSH_HOSTS_FILE    ?= $(BUILD_DIR)/known_hosts
 
 OVMF_PATH          = $(shell realpath $(OVMF))
 IMAGE_PATH         = $(shell realpath $(IMAGE))
@@ -125,9 +126,14 @@ setup_integrity:
 
 attest_luks_vm:
 	$(BIN_DIR)/client --disk-key $(LUKS_KEY) --vm-definition $(LUKS_VM_CONFIG) --dump-report $(BUILD_DIR)/luks/attestation_report.json
+	# TODO: it would be nice if we could have something like the verity workflow for SSH
+	rm -rf $(SSH_HOSTS_FILE)
 
 attest_verity_vm:
 	./attestation/attest-verity.sh -vm-config $(VERITY_VM_CONFIG) -host $(VM_HOST) -port $(VM_PORT) -user $(VM_USER)
+
+ssh:
+	ssh -p $(VM_PORT) -o UserKnownHostsFile=$(SSH_HOSTS_FILE) $(VM_USER)@$(VM_HOST)
 
 init_dir:
 	mkdir -p $(BUILD_DIR)

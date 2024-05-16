@@ -3,10 +3,11 @@
 set -e
 
 TMP_FILE=$(mktemp)
-HOSTS_FILE=/dev/null
+echo $HOSTS_FILE
 
 SCRIPT_DIR=$(dirname $0)
 VERIFY_REPORT_BIN=$(realpath $SCRIPT_DIR/../build/bin/verify_report)
+SSH_HOSTS_FILE=$(realpath $SCRIPT_DIR/../build/known_hosts)
 
 VM_CONFIG=""
 HOST=localhost
@@ -55,37 +56,24 @@ if [ ! -f "$VM_CONFIG" ]; then
     usage
 fi
 
-echo "Scanning $HOST:$PORT for SSH keys.."
-ssh-keyscan -p $PORT $HOST > $TMP_FILE 2> /dev/null || {
-    echo "Host is unreachable or no SSH server running at port $PORT"
-    exit 1
-}
-
-echo "Fetching SSH key fingerprint.."
-KEYS="$(ssh-keygen -lf $TMP_FILE)"
-NUM_KEYS=$(echo "$KEYS" | wc -l)
-
-if [ $NUM_KEYS = "0" ]; then
-	echo "Could not find SSH host keys"
-	exit 1
-elif [ ! $NUM_KEYS = "1" ]; then
-	echo "$KEYS"
-	read -p "Choose SSH key (indicate algorithm): " KEY
-	KEYS=$(echo "$KEYS" | grep -i "($KEY)") || {
-		echo "Invalid key"
-		exit 1
-	}
-fi
+# clean up known_hosts file before running the script
+rm -rf $SSH_HOSTS_FILE
 
 echo "Fetching attestation report via SCP.."
-scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=$HOSTS_FILE -P $PORT $USER@$HOST:$IN_REPORT $OUT_REPORT 2> /dev/null || {
+scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=$SSH_HOSTS_FILE -P $PORT $USER@$HOST:$IN_REPORT $OUT_REPORT || {
     echo "Failed to connect to VM"
+	rm -rf $SSH_HOSTS_FILE
     exit 1
 }
 
 echo "Verifying attestation report.."
-FINGERPRINT=$(echo $KEYS | grep ECDSA | awk '{ print $2 }' | cut -d ":" -f 2)
-$VERIFY_REPORT_BIN --input /tmp/report.json --vm-definition $VM_CONFIG --report-data $FINGERPRINT
+FINGERPRINT=$(ssh-keygen -lf $SSH_HOSTS_FILE | awk '{ print $2 }' | cut -d ":" -f 2)
+$VERIFY_REPORT_BIN --input /tmp/report.json --vm-definition $VM_CONFIG --report-data $FINGERPRINT || {
+	echo "Failed to attest the VM"
+	rm -rf $SSH_HOSTS_FILE
+	exit 1
+}
 
-echo "Done! You can safely connect to the CVM as long as its SSH fingerprint is:"
-echo "$KEYS"
+echo "Done! You can safely connect to the CVM using the following command:"
+echo "ssh -p $PORT -o UserKnownHostsFile=$SSH_HOSTS_FILE $USER@$HOST"
+echo "Guest SSH fingerprint: $(ssh-keygen -lf $SSH_HOSTS_FILE | awk '{ printf ("%s %s", $2, $4) }' )"

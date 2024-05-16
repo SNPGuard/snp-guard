@@ -422,14 +422,33 @@ You can pass the following, optional parameters:
 ### Step 3: Verify guest integrity
 
 Now, after the guest has booted, we can connect to it via SSH and get an
-attestation report to verify its integrity.
+attestation report to verify its integrity. Our tool automates this process, as
+explained below.
 
-To get the attestation report, first copy the `build/get_report` binary into the
-VM. Inside the VM, execute `sudo ./get_report` to store the report in a json
-file. To verify the report, copy it to the host and use `build/verify_report
---input <path to obtained report file> --vm_definition <path to vm config
-file>`. If you are using the default setup, the VM config file is at
-`build/verity/vm-config-verity.toml`.
+In the initramfs, after generating new host SSH keys (see above), the guest CVM
+requests an attestation report from the AMD SP and puts the fingerprint of the
+public SSH key in the `REPORT_DATA` field. The attestation report is then stored
+in `/etc/report.json` in the root filesystem, and can be retrieved on demand by
+the guest owner.
+
+We provide a script that fetches the report via `scp` and verifies it using the
+`verify_report` tool. Attestation will also check that the `REPORT_DATA` field
+in the report matches the SSH key fingerprint of the guest, obtained when
+connecting via `scp`. If attestation succeeds, the guest can then safely connect
+to its VM via SSH using the `known_hosts` file that will be stored in `./build`:
+
+```bash
+# Fetch attestation report via `scp` and attest the guest VM
+make attest_verity_vm
+
+# if attestation succeeds, safely connect via SSH
+make ssh
+```
+
+Both commands above accept the following parameters:
+- `VM_HOST`: hostname of the guest VM (default: `localhost`)
+- `VM_PORT`: port of the guest VM (default: `2222`)
+- `VM_USER`: user of the guest VM to login to (default: `ubuntu`)
 
 ## Run encrypted workflow
 
