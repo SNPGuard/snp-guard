@@ -77,8 +77,6 @@ elif [ ! $NUM_KEYS = "1" ]; then
 	}
 fi
 
-FINGERPRINT=$(echo $KEYS | grep ECDSA | awk '{ print $2 }' | cut -d ":" -f 2)
-
 echo "Fetching attestation report via SCP.."
 scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=$HOSTS_FILE -P $PORT $USER@$HOST:$IN_REPORT $OUT_REPORT 2> /dev/null || {
     echo "Failed to connect to VM"
@@ -86,6 +84,7 @@ scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=$HOSTS_FILE -P $PORT $USER
 }
 
 echo "Verifying attestation report.."
+FINGERPRINT=$(echo $KEYS | grep ECDSA | awk '{ print $2 }' | cut -d ":" -f 2)
 $VERIFY_REPORT_BIN --input /tmp/report.json --vm-definition $VM_CONFIG --report-data $FINGERPRINT
 
 echo "Done! You can safely connect to the CVM as long as its SSH fingerprint is:"
