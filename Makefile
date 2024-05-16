@@ -42,10 +42,6 @@ LUKS_IMAGE        ?= $(BUILD_DIR)/luks/image.qcow2
 LUKS_PARAMS       ?= boot=encrypted
 LUKS_KEY          ?=
 
-INTEGRITY_IMAGE     ?= $(BUILD_DIR)/integrity/image.qcow2
-INTEGRITY_KEY       ?= $(BUILD_DIR)/integrity/dummy.key
-INTEGRITY_PARAMS    ?= boot=integrity
-
 QEMU_LAUNCH_SCRIPT = ./launch.sh
 QEMU_DEF_PARAMS    = -default-network -log $(BUILD_DIR)/stdout.log -mem $(MEMORY) -smp $(CPUS)
 QEMU_EXTRA_PARAMS  = -bios $(OVMF) -policy $(POLICY)
@@ -110,11 +106,6 @@ setup_verity:
 setup_luks:
 	mkdir -p $(BUILD_DIR)/luks
 	./guest-vm/setup_luks.sh -in $(IMAGE) -out $(LUKS_IMAGE)
-
-setup_integrity:
-	mkdir -p $(BUILD_DIR)/integrity
-	echo test > $(BUILD_DIR)/integrity/dummy.key
-	./guest-vm/setup_integrity.sh -in $(IMAGE) -out $(INTEGRITY_IMAGE) -key $(INTEGRITY_KEY)
 
 fetch_vm_config_template:
 	cp $(VM_CONF_PATH) $(VM_CONF_TEMPLATE)
