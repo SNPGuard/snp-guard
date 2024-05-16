@@ -12,7 +12,6 @@ INITRD_PATH=
 OUT_PATH="./build/vm-config.toml"
 KERNEL_CMDLINE=
 TEMPLATE_PATH=
-CPU_FAMILY="Milan"
 CPUS="1"
 POLICY="0x30000"
 
@@ -24,7 +23,6 @@ usage() {
   echo "-initrd <path>                        Path to initrd file         [Mandatory]"
   echo "-template <path>                      Path to config template     [Mandatory]"
   echo "-cmdline <string>                     Kernel cmdline parameters   [Optional]"
-  echo "-cpu-family <string>                  Host CPU family (Default: $CPU_FAMILY)"
   echo "-cpus <int>                           Number of CPUs (Default: $CPUS)"
   echo "-policy <string>                      Policy (Default: $POLICY)"
   echo "-out <path>                           Output config file (Default: $OUT_PATH)"
@@ -53,9 +51,6 @@ while [ -n "$1" ]; do
     -cmdline) KERNEL_CMDLINE="$2"
       shift
       ;;
-    -cpu-family) CPU_FAMILY="$2"
-      shift
-      ;;
     -cpus) CPUS="$2"
       shift
       ;;
@@ -82,7 +77,6 @@ if [[ "$KERNEL_CMDLINE" != "" ]]; then
     sed -i "\@kernel_cmdline@c kernel_cmdline = \"${KERNEL_CMDLINE}\"" "$OUT_PATH"
 fi
 
-sed -i "\@host_cpu_family@c host_cpu_family = \"${CPU_FAMILY}\"" "$OUT_PATH"
 sed -i "\@vcpu_count@c vcpu_count = ${CPUS}" "$OUT_PATH"
 sed -i "\@guest_policy@c guest_policy = ${POLICY}" "$OUT_PATH"
 

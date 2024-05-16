@@ -9,20 +9,13 @@ CLOUD_CONFIG      ?= $(GUEST_DIR)/config-blob.img
 HEADERS_DEB       ?= $(SNP_DIR)/linux/guest/linux-headers-*.deb
 KERNEL_DEB        ?= $(SNP_DIR)/linux/guest/linux-image-*.deb
 
-VM_CONF_TEMPLATE  ?= $(shell realpath ./tools/attestation_server/examples/vm-config.toml)
-
-#These config values are only used by the demo/debug targets ()
-#The luks and verity targets pick their config value from the toml VM config file. This file is used by both the launch script and the 
-#tools that checks the attestation report. This ways, we want to avoid missmatches due to config missmatches
 OVMF              ?= $(BUILD_DIR)/snp-release/usr/local/share/qemu/DIRECT_BOOT_OVMF.fd
-LOAD_CONFIG       ?= $(BUILD_DIR)/vm-config.toml
 KERNEL_DIR        ?= $(BUILD_DIR)/kernel
 KERNEL            ?= $(KERNEL_DIR)/boot/vmlinuz-*
 INITRD            ?= $(BUILD_DIR)/initramfs.cpio.gz
 ROOT              ?= /dev/sda
 KERNEL_CMDLINE    ?= console=ttyS0 earlyprintk=serial root=$(ROOT)
 
-CPU_FAMILY        ?= Milan
 MEMORY            ?= 2048
 CPUS			  ?= 1
 POLICY            ?= 0x30000
@@ -43,26 +36,26 @@ INIT_SCRIPT       ?= initramfs/init.sh
 VERITY_IMAGE      ?= $(BUILD_DIR)/verity/image.qcow2
 VERITY_HASH_TREE  ?= $(BUILD_DIR)/verity/hash_tree.bin
 VERITY_ROOT_HASH  ?= $(BUILD_DIR)/verity/roothash.txt
-VERITY_VM_CONFIG  ?= $(BUILD_DIR)/verity/vm-config-verity.toml
 VERITY_PARAMS     ?= boot=verity verity_disk=/dev/sdb verity_roothash=`cat $(VERITY_ROOT_HASH)`
 
 LUKS_IMAGE        ?= $(BUILD_DIR)/luks/image.qcow2
-LUKS_VM_CONFIG    ?= $(BUILD_DIR)/luks/vm-config-LUKS.toml
 LUKS_PARAMS       ?= boot=encrypted
 LUKS_KEY          ?=
 
 INTEGRITY_IMAGE     ?= $(BUILD_DIR)/integrity/image.qcow2
 INTEGRITY_KEY       ?= $(BUILD_DIR)/integrity/dummy.key
-INTEGRITY_VM_CONFIG ?= $(BUILD_DIR)/integrity/vm-config-integrity.toml
 INTEGRITY_PARAMS    ?= boot=integrity
 
 QEMU_LAUNCH_SCRIPT = ./launch.sh
 QEMU_DEF_PARAMS    = -default-network -log $(BUILD_DIR)/stdout.log -mem $(MEMORY) -smp $(CPUS)
 QEMU_EXTRA_PARAMS  = -bios $(OVMF) -policy $(POLICY)
 QEMU_SNP_PARAMS    = -sev-snp
-QEMU_KERNEL_PARAMS = -append "$(KERNEL_CMDLINE)"
+QEMU_KERNEL_PARAMS = -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -append "$(KERNEL_CMDLINE)"
 
-VM_CONFIG_PARAMS   = -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template $(VM_CONF_TEMPLATE) -cpu-family $(CPU_FAMILY) -cpus $(CPUS) -policy $(POLICY)
+VM_CONF_PATH       = $(shell realpath ./tools/attestation_server/examples/vm-config.toml)
+VM_CONF_TEMPLATE   = $(GUEST_DIR)/vm-config-template.toml
+VM_CONFIG_FILE     = $(GUEST_DIR)/vm-config.toml
+VM_CONFIG_PARAMS   = -ovmf $(OVMF_PATH) -kernel $(KERNEL_PATH) -initrd $(INITRD_PATH) -template $(VM_CONF_TEMPLATE) -cpus $(CPUS) -policy $(POLICY)
 
 run:
 	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_EXTRA_PARAMS) -hda $(IMAGE_PATH)
@@ -74,13 +67,15 @@ run_sev_snp:
 	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_EXTRA_PARAMS) $(QEMU_SNP_PARAMS) -hda $(IMAGE_PATH)
 
 run_sev_snp_direct_boot:
-	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) $(QEMU_KERNEL_PARAMS) -hda $(IMAGE_PATH) -load-config $(LOAD_CONFIG)
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_EXTRA_PARAMS) $(QEMU_SNP_PARAMS) $(QEMU_KERNEL_PARAMS) -hda $(IMAGE_PATH)
 
-run_sev_snp_verity:
-	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) -hda $(VERITY_IMAGE) -hdb $(VERITY_HASH_TREE) -load-config $(VERITY_VM_CONFIG)
+run_verity_workflow:
+	./guest-vm/create-vm-config.sh $(VM_CONFIG_PARAMS) -cmdline "$(KERNEL_CMDLINE) $(VERITY_PARAMS)" -out $(VM_CONFIG_FILE)
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) -hda $(VERITY_IMAGE) -hdb $(VERITY_HASH_TREE) -load-config $(VM_CONFIG_FILE)
 
-run_sev_snp_luks:
-	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) -hda $(LUKS_IMAGE) -load-config $(LUKS_VM_CONFIG)
+run_luks_workflow:
+	./guest-vm/create-vm-config.sh $(VM_CONFIG_PARAMS) -cmdline "$(KERNEL_CMDLINE) $(LUKS_PARAMS)" -out $(VM_CONFIG_FILE)
+	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) -hda $(LUKS_IMAGE) -load-config $(VM_CONFIG_FILE)
 
 install_dependencies:
 	./prepare-snp-dependencies.sh
@@ -111,32 +106,33 @@ create_new_vm:
 setup_verity:
 	mkdir -p $(BUILD_DIR)/verity
 	./guest-vm/setup_verity.sh -image $(IMAGE) -out-image $(VERITY_IMAGE) -out-hash-tree $(VERITY_HASH_TREE) -out-root-hash $(VERITY_ROOT_HASH)
-	./guest-vm/create-vm-config.sh $(VM_CONFIG_PARAMS) -cmdline "$(KERNEL_CMDLINE) $(VERITY_PARAMS)" -out $(VERITY_VM_CONFIG)
 
 setup_luks:
 	mkdir -p $(BUILD_DIR)/luks
 	./guest-vm/setup_luks.sh -in $(IMAGE) -out $(LUKS_IMAGE)
-	./guest-vm/create-vm-config.sh $(VM_CONFIG_PARAMS) -cmdline "$(KERNEL_CMDLINE) $(LUKS_PARAMS)" -out $(LUKS_VM_CONFIG)
 
 setup_integrity:
 	mkdir -p $(BUILD_DIR)/integrity
 	echo test > $(BUILD_DIR)/integrity/dummy.key
 	./guest-vm/setup_integrity.sh -in $(IMAGE) -out $(INTEGRITY_IMAGE) -key $(INTEGRITY_KEY)
-	./guest-vm/create-vm-config.sh $(VM_CONFIG_PARAMS) -cmdline "$(KERNEL_CMDLINE) $(INTEGRITY_PARAMS)" -out $(INTEGRITY_VM_CONFIG)
+
+fetch_vm_config_template:
+	cp $(VM_CONF_PATH) $(VM_CONF_TEMPLATE)
 
 attest_luks_vm:
-	$(BIN_DIR)/client --disk-key $(LUKS_KEY) --vm-definition $(LUKS_VM_CONFIG) --dump-report $(BUILD_DIR)/luks/attestation_report.json
+	$(BIN_DIR)/client --disk-key $(LUKS_KEY) --vm-definition $(VM_CONFIG_FILE) --dump-report $(BUILD_DIR)/luks/attestation_report.json
 	rm -rf $(SSH_HOSTS_FILE)
 
 attest_verity_vm:
-	./attestation/attest-verity.sh -vm-config $(VERITY_VM_CONFIG) -host $(VM_HOST) -port $(VM_PORT) -user $(VM_USER)
+	./attestation/attest-verity.sh -vm-config $(VM_CONFIG_FILE) -host $(VM_HOST) -port $(VM_PORT) -user $(VM_USER)
 
 ssh:
 	ssh -p $(VM_PORT) -o UserKnownHostsFile=$(SSH_HOSTS_FILE) $(VM_USER)@$(VM_HOST)
 
 init_dir:
 	mkdir -p $(BUILD_DIR)
-	mkdir -p $(BUILD_DIR)/bin
+	mkdir -p $(BIN_DIR)
+	mkdir -p $(GUEST_DIR)
 
 clean:
 	rm -rf $(BUILD_DIR)

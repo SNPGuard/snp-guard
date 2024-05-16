@@ -79,6 +79,9 @@ wget <link>
 
 # unpack archive
 tar -xf snp-release.tar.gz
+
+# go back
+cd ..
 ```
 
 ### Option 2: Build with Docker
@@ -112,6 +115,9 @@ cd ../build
 
 # unpack archive
 tar -xf snp-release.tar.gz
+
+# go back
+cd ..
 ```
 
 ### Option 3: Build locally
@@ -316,6 +322,30 @@ sudo systemctl disable multipathd.service
 sudo mv /etc/fstab /etc/fstab.bak
 ```
 
+### Step 3: Prepare template for attestation
+
+Before launching the VM, a VM configuration file will be created at
+`build/vm-config.toml`. This file contains all settings that are
+relevant for the attestation process, e.g. the OVMF binary, the kernel command
+line or if debug mode is activated. The same configuration is then applied to
+both the launch script and attestation command.
+
+The configuration file is created from a template that can be retrieved with the
+command below:
+
+```bash
+make fetch_vm_config_template
+```
+
+The template will then be stored in `./build/guest/vm-config-template.toml`. It
+is important to properly configure the template according to the host and guest
+configuration. Most of the options will be automatically configured by our
+scripts, but the user should manually check the following options to ensure they
+are correct (the template contains useful information to understand them):
+- `host_cpu_family`
+- `platform_info`
+- `min_commited_tcb`
+
 ## Run integrity-only workflow
 
 In this workflow, we create a read-only filesystem starting from an existing
@@ -376,26 +406,10 @@ image and copy the root filesystem there along with the required modifications.
 Then, we compute the `dm-verity` tree and root hash.
 
 ```bash
+# create verity image. Pass IMAGE=<path> to change source image to use.
+# By default, the image created with `make create_new_vm` is used
 make setup_verity
 ```
-
-Both commands will create a central VM config file at
-`build/verity/vm-config-verity.toml`. This file contains all settings that are
-relevant for the attestation process, e.g. the OVMF binary, the kernel command
-line or if debug mode is activated. It is used by both, our launch scripts and
-our verification tools to avoid configuration mismatches between the launch
-configuration and the configuration option used to compute the expected launch
-digest.
-
-The `setup_verity` command can be configured with the following parameters:
-- `IMAGE`: Path to the input VM image to use. By default, the path to the image
-  created with `make create_new_vm` will be used.
-- `CPU_FAMILY`: Host CPU family (e.g., `Milan` or `Genoa`). This is needed to
-  get the correct VCEK certificate when attesting the CVM. Default: `Milan`.
-- `CPUS`: Number of CPUs that the guest CVM will have. It is important to
-  specify the correct value because it will be reflected in the launch
-  measurement. Default: `1`.
-- `POLICY`: The SEV-SNP launch policy. Default: `0x30000`.
 
 ### Step 2: Launch guest
 
@@ -410,14 +424,18 @@ memory. In the former case, you might see a kernel panic, while in the latter
 case QEMU will kill the guest.
 
 ```bash
-# Create verity device, specifying the memory needed
+# Run guest VM with `dm-verity` enabled
 # by default, we use the image and merkle tree generated in the previous step
-make run_sev_snp_verity
+make run_verity_workflow
 ```
 
 You can pass the following, optional parameters:
 - `VERITY_IMAGE` and `VERITY_HASH_TREE` to use a custom image and hash tree
 - `MEMORY` to specify the memory size in MB
+- `CPUS`: Number of CPUs that the guest CVM will have. It is important to
+  specify the correct value because it will be reflected in the launch
+  measurement. Default: `1`.
+- `POLICY`: The SEV-SNP launch policy. Default: `0x30000`.
 
 ### Step 3: Verify guest integrity
 
@@ -455,38 +473,38 @@ Both commands above accept the following parameters:
 ### Step 1: Prepare dm-crypt
 
 First, We need to encrypt and integrity protect the root disk. We use the
-[setup_luks.sh](./guest-vm/setup_luks.sh) script to create a new encrypted VM image and
-copy the root filesystem there along with the required modifications.
+[setup_luks.sh](./guest-vm/setup_luks.sh) script to create a new encrypted VM
+image and copy the root filesystem there along with the required modifications.
+The script will ask the user to enter a passphrase that will be used as the disk
+encryption key.
 
 ```bash
+# create encrypted image. Pass IMAGE=<path> to change source image to use.
+# By default, the image created with `make create_new_vm` is used
 make setup_luks
 ```
-
-Besides the VM image, this also creates our central VM config file at
-`build/luks/vm-config-verity.toml`. This file contains all settings that are
-relevant for the attestation process, e.g. the OVMF binary, the kernel command
-line or if debug mode is activated. It is used by both, our launch scripts and
-our verification tools to avoid configuration mismatches between the launch
-configuration and the configuration option used to compute the expected launch
-digest.
-
-The `setup_luks` command can be configured with the following parameters:
-- `IMAGE`: Path to the input VM image to use. By default, the path to the image
-  created with `make create_new_vm` will be used.
-- `CPU_FAMILY`: Host CPU family (e.g., `Milan` or `Genoa`). This is needed to
-  get the correct VCEK certificate when attesting the CVM. Default: `Milan`.
-- `CPUS`: Number of CPUs that the guest CVM will have. It is important to
-  specify the correct value because it will be reflected in the launch
-  measurement. Default: `1`.
-- `POLICY`: The SEV-SNP launch policy. Default: `0x30000`.
 
 ### Step 2: Launch guest
 
 To start the guest, run the command below.
 
+Now it's time to launch our guest VM. If everything goes well, you should be
+able to see a `Starting attestation server on 0.0.0.0:80` message in the
+initramfs logs, indicating that the guest is waiting to perform attestation and
+get the decryption key of the root filesystem (see below).
+
 ```bash
-make run_sev_snp_luks
+# Run guest VM with `dm-verity` enabled
+# by default, we use the image generated in the previous step
+make run_luks_workflow
 ```
+
+You can pass the following, optional parameters:
+- `MEMORY` to specify the memory size in MB
+- `CPUS`: Number of CPUs that the guest CVM will have. It is important to
+  specify the correct value because it will be reflected in the launch
+  measurement. Default: `1`.
+- `POLICY`: The SEV-SNP launch policy. Default: `0x30000`.
 
 ### Step 3: Unlock encrypted filesystem
 
@@ -536,7 +554,7 @@ VM owner/author. Bot keys need to be in the PKCS8 PEM format.
 
 To use them, add `id-block <path to id-block.base64> -id-auth <path to
 auth-block.base64>` and when calling `launch.sh`. See e.g. the
-`run_sev_snp_luks` recipe in the [Makefile](Makefile) to get an idea how to
+`run_luks_workflow` recipe in the [Makefile](Makefile) to get an idea how to
 manually call the launch script.
 
 ## Tips and tricks
