@@ -272,7 +272,7 @@ TODO: check if our workflows work with lvm2 (maybe need to patch init script)
 make run IMAGE=<your_image>
 
 # Copy kernel and headers to guest
-scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:/home/<username>
+scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:
 
 # from within the guest: check guest configuration below
 ```
