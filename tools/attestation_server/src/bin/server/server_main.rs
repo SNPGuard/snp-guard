@@ -107,7 +107,6 @@ fn process_injected_secret(mut req: Request, key_material: SecretInjectionParams
     let unwrapped_disk_key = aead_dec(&shared_secret, key_material.nonce, wrapped_key.wrapped_disk_key);
     let unwrapped_disk_key =
         str::from_utf8(&unwrapped_disk_key).expect("failed to convert unwrapped key to string");
-    println!("unwrapped_disk_key: {}", unwrapped_disk_key);
     let mut out_file = File::create("./disk_key.txt").expect("failed to create disk key");
     out_file
         .write_all(unwrapped_disk_key.as_bytes())

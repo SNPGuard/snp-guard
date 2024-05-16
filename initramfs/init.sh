@@ -68,15 +68,12 @@ boot_encrypted() {
     # assign IP address
     dhclient
 
-    echo "IP Data: $(ip addr)"
-
     #start network server handle attestation + disk pw receival
     /bin/server || exit 1
     PW=$(cat ./disk_key.txt)
     shred -u ./disk_key.txt
-    echo "Disk key is ${PW}"
+
     ROOT_FS_CRYPTDEV="$(basename $ROOT)_crypt"
-    echo "ROOT_FS_CRYPTDEV = $ROOT_FS_CRYPTDEV"
     echo "${PW}" | cryptsetup luksOpen "$ROOT" "$ROOT_FS_CRYPTDEV"
 
     #activate lvm2 (used by ubuntu as default when using crypto disk)

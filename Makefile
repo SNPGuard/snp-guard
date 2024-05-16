@@ -48,6 +48,7 @@ VERITY_PARAMS     ?= boot=verity verity_disk=/dev/sdb verity_roothash=`cat $(VER
 LUKS_IMAGE        ?= $(BUILD_DIR)/luks/image.qcow2
 LUKS_VM_CONFIG    ?= $(BUILD_DIR)/luks/vm-config-LUKS.toml
 LUKS_PARAMS       ?= boot=encrypted
+LUKS_KEY          ?=
 
 INTEGRITY_IMAGE     ?= $(BUILD_DIR)/integrity/image.qcow2
 INTEGRITY_KEY       ?= $(BUILD_DIR)/integrity/dummy.key
