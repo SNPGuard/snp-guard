@@ -1,12 +1,39 @@
-use std::fs::{self, File};
+use std::{
+    fs::{self, File},
+};
 
-use attestation_server::{calc_expected_ld::VMDescription, snp_validate_report::{parse_id_block_data, verify_and_check_report, CachingVCEKDownloader}};
+use attestation_server::{
+    calc_expected_ld::VMDescription,
+    snp_validate_report::{
+        parse_id_block_data, verify_and_check_report, CachingVCEKDownloader, ReportDataMissmatchSnafu, ReportVerificationError,
+    },
+};
+use base64::{engine::general_purpose, Engine};
 use clap::Parser;
 use sev::firmware::guest::AttestationReport;
-use snafu::{whatever, ResultExt, Whatever};
-use base64::{engine::general_purpose, Engine};
+use snafu::{prelude::*};
 
-#[derive(Parser,Debug)]
+#[derive(Debug, Snafu)]
+enum UserError {
+    #[snafu(display("Attestation report not valid : {}", source))]
+    InvalidReport { source: ReportVerificationError },
+
+    ///catch-all error type
+    #[snafu(whatever, display("{message}"))]
+    Whatever {
+        message: String,
+        #[snafu(source(from(Box<dyn std::error::Error>, Some)))]
+        source: Option<Box<dyn std::error::Error>>,
+    },
+}
+
+/// Verify SEV-SNP attestation reports
+#[derive(Parser, Debug)]
+#[command(
+    version,
+    about,
+    long_about = "Verify SEV-SNP attestation reports. This is the counterpart to the `get_report` binary"
+)]
 struct Args {
     ///Path to attestion report file as e.g. obtained by the `get_report` binary`
     #[arg(long, default_value = "./attestation_report.json")]
@@ -36,30 +63,35 @@ struct Args {
     #[arg(long, default_value = "")]
     report_data: String,
 }
-fn main() -> Result<(), Whatever> {
 
-    let args = Args::parse();
+fn run(args: &Args) -> Result<(), UserError> {
 
     //
     // Parse arguments
     //
 
-    let input_file = File::open(&args.input).whatever_context(format!("failed to open attestation report file at {}",&args.input))?;
-    let attestation_report : AttestationReport = serde_json::from_reader(input_file).whatever_context("failed to parse attestation report file")?;
+    let input_file = File::open(&args.input).whatever_context(format!(
+        "failed to open attestation report file at {}",
+        &args.input
+    ))?;
+    let attestation_report: AttestationReport = serde_json::from_reader(input_file)
+        .whatever_context("failed to parse attestation report file as json")?;
 
     let mut vm_description: VMDescription = toml::from_str(
         &fs::read_to_string(&args.vm_definition).whatever_context(format!(
-            "failed to read config from {}",
+            "failed to read vm config from {}",
             &args.vm_definition
         ))?,
     )
-    .whatever_context("failed to parse config as toml")?;
-    if let Some(cmdline_override) = args.override_kernel_cmdline {
-        vm_description.kernel_cmdline = cmdline_override;
+    .whatever_context("failed to parse vm config as toml")?;
+    if let Some(cmdline_override) = &args.override_kernel_cmdline {
+        vm_description.kernel_cmdline = cmdline_override.clone();
     }
-    let expected_ld = vm_description.compute_expected_hash().expect("todo");
+    let expected_ld = vm_description
+        .compute_expected_hash()
+        .whatever_context("failed to compute the expected launch digest based on the vm config")?;
 
-     //If both the id block and the id auth block flag were specified, this contains the parsed data
+    //If both the id block and the id auth block flag were specified, this contains the parsed data
     //as well as a representation for checking the attestation report
     let id_data;
     if let (Some(id_block_path), Some(id_auth_block_path)) =
@@ -82,44 +114,55 @@ fn main() -> Result<(), Whatever> {
     let report_data_raw = general_purpose::STANDARD_NO_PAD
         .decode(&args.report_data)
         .whatever_context("failed to decode report_data as base64")?;
-    let len = report_data_raw.len();
+    let report_data_len = report_data_raw.len();
 
-    if len > 64 {
-        panic!("Report data length should be <= 64 bytes!");
+    if report_data_len > 64 {
+        whatever!(
+            "report data length should be <= 64 bytes but you provided {} bytes",
+            report_data_len
+        );
     }
 
     let mut report_data = [0u8; 64];
-    report_data[..len].copy_from_slice(&report_data_raw);
+    report_data[..report_data_len].copy_from_slice(&report_data_raw);
 
     //
     // Validate
     //
 
-    println!("Verifying report signature");
+    println!("Verifying Report");
     let vcek_resolver =
-        CachingVCEKDownloader::new().expect("failed to instantiate vcek downloader");
+        CachingVCEKDownloader::new().whatever_context("failed to instantiate vcek downloader")?;
     let vcek_cert = vcek_resolver
         .get_vceck_cert(
             attestation_report.chip_id,
             vm_description.host_cpu_family,
             &attestation_report.committed_tcb,
         )
-        .expect("failed to get vcek cert");
+        .whatever_context(format!(
+            "failed to download vcek cert for cpu family {}, chip_id 0x{}",
+            &vm_description.host_cpu_family,
+            hex::encode(attestation_report.chip_id)
+        ))?;
 
     //Veryfing content
     let report_data_validator = |vm_data: [u8; 64]| {
-        let report_data_b64 = general_purpose::STANDARD_NO_PAD
-            .encode(&vm_data);
+        let report_data_b64 = general_purpose::STANDARD_NO_PAD.encode(&vm_data);
 
         if args.report_data.is_empty() {
             // just print it for info
-            println!("Report data: {}", report_data_b64);
+            println!(
+                "Your config does not expect report data but VM provided: {}",
+                report_data_b64
+            );
         } else {
             // actually validate
             if report_data != vm_data {
-                whatever!(
-                    "Report data does not match expected one",
-                );
+                return ReportDataMissmatchSnafu {
+                    expected: format!("0x{}",hex::encode(report_data)),
+                    got: format!("0x{}",hex::encode(vm_data)),
+                }
+                .fail();
             }
         }
         Ok(())
@@ -129,7 +172,6 @@ fn main() -> Result<(), Whatever> {
     } else {
         None
     };
-    println!("Verifying report data");
     verify_and_check_report(
         &attestation_report,
         vm_description.host_cpu_family,
@@ -142,8 +184,28 @@ fn main() -> Result<(), Whatever> {
         None, //We don't use host data right now
         Some(expected_ld),
     )
-    .whatever_context("Attestation Report Invalid!")?;
+    .context(InvalidReportSnafu {})?;
 
-    println!("Success!");
     Ok(())
+}
+
+#[snafu::report]
+fn main() -> Result<(), UserError> {
+    let args = Args::parse();
+
+    match run(&args) {
+        Ok(_) => {
+            println!("Success!");
+            Ok(())
+        }
+        Err(e) => {
+            match e {
+                UserError::InvalidReport { .. } => {
+                    println!("Program executed successfully but attestation report was invalid.\nIn case of missmatching values, verify that the data in the vm config file {} matches your host.\nPlease find more details on the verification error below.",&args.vm_definition);
+                }
+                _ => (),
+            }
+            Err(e)
+        }
+    }
 }

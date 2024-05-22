@@ -16,7 +16,7 @@ INITRD            ?= $(BUILD_DIR)/initramfs.cpio.gz
 ROOT              ?= /dev/sda
 KERNEL_CMDLINE    ?= console=ttyS0 earlyprintk=serial root=$(ROOT)
 
-MEMORY            ?= 2048
+MEMORY            ?= 4096
 CPUS			  ?= 1
 POLICY            ?= 0x30000
 

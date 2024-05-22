@@ -346,6 +346,11 @@ are correct (the template contains useful information to understand them):
 - `platform_info`
 - `min_commited_tcb`
 
+**Caution**: The make command above adds the `console=ttyS0` option to the kernel command line of the VM. This enables console output from the VM on the terminal, making it much easier to follow the steps in this manual and to debug potential errors.
+However, this is not a secure production setup, as all console data passes through unencrypted host memory.
+In addition, it increases the attack surface of the hypervisor.
+If you are running the VM locally this does not matter, but for a remote production setup, you should remove this option from the template config file and only log in via SSH.
+
 ## Run integrity-only workflow
 
 In this workflow, we create a read-only filesystem starting from an existing

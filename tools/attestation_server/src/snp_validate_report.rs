@@ -20,7 +20,9 @@ use sev::{
     },
     measurement::idblock_types::{IdAuth, IdBlock, SevEcdsaPubKey},
 };
-use snafu::{whatever, ResultExt, Whatever};
+use snafu::{whatever, ResultExt, Whatever,prelude::*};
+
+
 
 
 ///Parse the supplied data and also return a special representation
@@ -287,24 +289,20 @@ pub fn check_report_data<F>(
     report_data_validator: Option<F>,
     host_data: Option<[u8; 32]>,
     ld: Option<[u8; 48]>,
-) -> Result<(), Whatever>
+) -> Result<(), ReportVerificationError>
 where
-    F: Fn([u8; 64]) -> Result<(), Whatever>,
+    F: Fn([u8; 64]) -> Result<(), ReportVerificationError>,
 {
     if let Some(p) = policy {
-        if report.policy.0 != p.0 {
-            whatever!(
-                "policy does not match, expected {:x?} got {:x?}",
-                p,
-                report.policy,
-            )
-        }
+        ensure!(report.policy.0 == p.0, PolicyMissmatchSnafu{
+            expected: p,
+            got: report.policy,
+        });
     }
 
     if let Some(idblock_data) = idblock_data {
         idblock_data
-            .check(&report)
-            .whatever_context("id block data does not match report")?
+            .check(&report).context(InvalidIdBlockSnafu{})?
     }
 
     if let Some(tcb) = tcb {
@@ -314,21 +312,16 @@ where
             || got.snp < tcb.snp
             || got.microcode < tcb.microcode
         {
-            whatever!(
-                "tcb components not >= required versions, expected at least {:x?} got {:x?}",
-                tcb,
-                report.committed_tcb
-            )
+            return TcbVersionMissmatchSnafu{expected:tcb, got:report.committed_tcb}.fail();
         }
     }
 
     if let Some(pinfo) = plat_info {
         if report.plat_info.0 != pinfo.0 {
-            whatever!(
-                "platform info does not match, expected {} got {}",
-                pinfo,
-                report.plat_info
-            );
+            return PlatformInfoMissmatchSnafu{
+                expected: pinfo,
+                got: report.plat_info,
+            }.fail();
         }
     }
 
@@ -338,21 +331,19 @@ where
 
     if let Some(host_data) = host_data {
         if report.host_data != host_data {
-            whatever!(
-                "host data does not match, expected {:?} got {:?}",
-                host_data,
-                report.host_data
-            );
+            return HostDataMissmatchSnafu{
+                expected: host_data,
+                got: report.host_data,
+            }.fail();
         }
     }
 
     if let Some(ld) = ld {
         if !report.measurement.eq(&ld) {
-            whatever!(
-                "measurement does not match, expected {:x?} got {:x?}",
-                ld,
-                report.measurement
-            );
+            return LaunchDigestMissmatchSnafu{
+                expected: ld,
+                got: report.measurement
+            }.fail();
         }
     }
 
@@ -360,24 +351,25 @@ where
 }
 
 ///verify that the signature on the report is valid
-//using the static amd certificate chain for the given product family
-//as well as the chip specific vcek_cert
-// *DOES NOT* check the data contained in the report
+///using the static amd certificate chain for the given product family
+///as well as the chip specific vcek_cert
+/// *DOES NOT* check the data contained in the report
+/// Returns Ok on success
 pub fn verify_report_signature(
     product_name: ProductName,
     report: &AttestationReport,
     vcek_cert: Certificate,
-) -> Result<bool, Whatever> {
+) -> Result<(), Whatever> {
     let ark;
     let ask;
     match product_name {
         ProductName::Milan => {
-            ark = milan::ark().unwrap();
-            ask = milan::ask().unwrap();
+            ark = milan::ark().whatever_context("failed to parse ARK certificate")?;
+            ask = milan::ask().whatever_context("failed to parse ASK certificate")?;
         }
         ProductName::Genoa => {
-            ark = genoa::ark().unwrap();
-            ask = genoa::ask().unwrap();
+            ark = genoa::ark().whatever_context("failed to parse ARK certificate")?;
+            ask = genoa::ask().whatever_context("failed to parse ASK certificate")?;
         }
     }
 
@@ -386,10 +378,56 @@ pub fn verify_report_signature(
     let chain = Chain { ca, vek: vcek_cert };
 
     (&chain, report)
-        .verify()
-        .expect("cert errror. itroduce error type");
+        .verify().whatever_context("invalid attestation report signature")?;
+    Ok(())
+}
+#[derive(Debug, Snafu)]
+#[snafu(visibility(pub))]
+pub enum ReportVerificationError {
+    #[snafu(display("Invalid attestation report signature"))]
+    InvalidSignature{source: Whatever},
 
-    Ok(true)
+    #[snafu(display("Invalid policy, expected {:x?} got {:x?}",expected,got))]
+    PolicyMissmatch{
+        expected: GuestPolicy,
+        got: GuestPolicy
+    },
+
+    #[snafu(display("Invalid ID block data : {}", source.to_string()))]
+    InvalidIdBlock{
+        source: Whatever
+    },
+
+    #[snafu(display("Invalid TCB version data, expected {:x?} got {:x?}", expected, got))]
+    TcbVersionMissmatch{
+        expected: TcbVersion,
+        got: TcbVersion,
+    },
+
+    #[snafu(display("Invalid PlatformInfo, expected {} got {}", expected, got))]
+    PlatformInfoMissmatch{
+        expected: PlatformInfo,
+        got: PlatformInfo,
+    },
+
+    #[snafu(display("Invalid HostData, expected 0x{} got 0x{}", hex::encode(expected), hex::encode(got)))]
+    HostDataMissmatch{
+        expected: [u8; 32],
+        got: [u8; 32],
+    },
+
+    #[snafu(display("Invalid launch digest, expected 0x{} got 0x{}", hex::encode(expected), hex::encode(got)))]
+    LaunchDigestMissmatch{
+        expected: [u8; 48],
+        got: [u8; 48],
+    },
+
+    #[snafu(display("Invalid report data, expected {} got {}",expected, got))]
+    ReportDataMissmatch{
+        expected: String,
+        got: String,
+    }
+
 }
 
 ///Verify the report signature and check that the given data fields match
@@ -406,11 +444,13 @@ pub fn verify_and_check_report<F>(
     report_data_validator: Option<F>,
     host_data: Option<[u8; 32]>,
     ld: Option<[u8; 48]>,
-) -> Result<(), Whatever>
+) -> Result<(), ReportVerificationError>
 where
-    F: Fn([u8; 64]) -> Result<(), Whatever>,
+    F: Fn([u8; 64]) -> Result<(), ReportVerificationError>,
 {
-    verify_report_signature(product_name, report, vcek_cert)?;
+    //checking the data before checking the signature makes it easier to find the root-cause for errors.
+    //If we check the signature first, it could be invalid because of missmatching data or because
+    //of an actually invalid signature/signature key
     check_report_data(
         report,
         idblock_data,
@@ -420,7 +460,8 @@ where
         report_data_validator,
         host_data,
         ld,
-    )
+    )?;
+    verify_report_signature(product_name, report, vcek_cert).context(InvalidSignatureSnafu{})
 }
 
 #[cfg(test)]
