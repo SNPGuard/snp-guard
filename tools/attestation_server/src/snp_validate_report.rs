@@ -398,9 +398,9 @@ pub enum ReportVerificationError {
         source: Whatever
     },
 
-    #[snafu(display("Invalid TCB version data, expected {:x?} got {:x?}", expected, got))]
+    #[snafu(display("TCB version does not match mininum required version, want at least {:x?} but got {:x?}", expected, got))]
     TcbVersionMismatch{
-        expected: TcbVersion,
+        required_minimum: TcbVersion,
         got: TcbVersion,
     },
 
