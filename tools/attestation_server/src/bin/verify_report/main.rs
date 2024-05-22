@@ -5,7 +5,7 @@ use std::{
 use attestation_server::{
     calc_expected_ld::VMDescription,
     snp_validate_report::{
-        parse_id_block_data, verify_and_check_report, CachingVCEKDownloader, ReportDataMissmatchSnafu, ReportVerificationError,
+        parse_id_block_data, verify_and_check_report, CachingVCEKDownloader, ReportDataMismatchSnafu, ReportVerificationError,
     },
 };
 use base64::{engine::general_purpose, Engine};
@@ -158,7 +158,7 @@ fn run(args: &Args) -> Result<(), UserError> {
         } else {
             // actually validate
             if report_data != vm_data {
-                return ReportDataMissmatchSnafu {
+                return ReportDataMismatchSnafu {
                     expected: format!("0x{}",hex::encode(report_data)),
                     got: format!("0x{}",hex::encode(vm_data)),
                 }
@@ -201,7 +201,7 @@ fn main() -> Result<(), UserError> {
         Err(e) => {
             match e {
                 UserError::InvalidReport { .. } => {
-                    println!("Program executed successfully but attestation report was invalid.\nIn case of missmatching values, verify that the data in the vm config file {} matches your host.\nPlease find more details on the verification error below.",&args.vm_definition);
+                    println!("Program executed successfully but attestation report was invalid.\nIn case of mismatching values, verify that the data in the vm config file {} matches your host.\nPlease find more details on the verification error below.",&args.vm_definition);
                 }
                 _ => (),
             }

@@ -10,7 +10,7 @@ use attestation_server::{
     req_resp_ds::{aead_enc, AttestationRequest, WrappedDiskKey},
     snp_attestation::ReportData,
     snp_validate_report::{
-        parse_id_block_data, verify_and_check_report, CachingVCEKDownloader, ReportDataMissmatchSnafu, ReportVerificationError
+        parse_id_block_data, verify_and_check_report, CachingVCEKDownloader, ReportDataMismatchSnafu, ReportVerificationError
     },
 };
 
@@ -87,7 +87,7 @@ fn main() -> Result<(), UserError> {
         Err(e) => {
             match e {
                 UserError::InvalidReport { .. } => {
-                    println!("Program executed successfully but attestation report was invalid.\nIn case of missmatching values, verify that the data in the vm config file {} matches your host.
+                    println!("Program executed successfully but attestation report was invalid.\nIn case of mismatching values, verify that the data in the vm config file {} matches your host.
                     \nAfter updating the config file, you may simply run this command again.\nPlease find more details on the verification error below.",&args.vm_definition);
                 }
                 _ => (),
@@ -188,7 +188,7 @@ let vcek_cert = vcek_resolver
     let report_data_validator = |vm_data: [u8; 64]| {
         let report_data: ReportData = vm_data.clone().into();
         if nonce != report_data.nonce {
-            return ReportDataMissmatchSnafu{
+            return ReportDataMismatchSnafu{
                 expected:format!("0x{:x}",report_data.nonce),
                 got: format!("0x{:x}",nonce),
             }.fail();

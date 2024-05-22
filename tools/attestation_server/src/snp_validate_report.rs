@@ -294,7 +294,7 @@ where
     F: Fn([u8; 64]) -> Result<(), ReportVerificationError>,
 {
     if let Some(p) = policy {
-        ensure!(report.policy.0 == p.0, PolicyMissmatchSnafu{
+        ensure!(report.policy.0 == p.0, PolicyMismatchSnafu{
             expected: p,
             got: report.policy,
         });
@@ -312,13 +312,13 @@ where
             || got.snp < tcb.snp
             || got.microcode < tcb.microcode
         {
-            return TcbVersionMissmatchSnafu{expected:tcb, got:report.committed_tcb}.fail();
+            return TcbVersionMismatchSnafu{expected:tcb, got:report.committed_tcb}.fail();
         }
     }
 
     if let Some(pinfo) = plat_info {
         if report.plat_info.0 != pinfo.0 {
-            return PlatformInfoMissmatchSnafu{
+            return PlatformInfoMismatchSnafu{
                 expected: pinfo,
                 got: report.plat_info,
             }.fail();
@@ -331,7 +331,7 @@ where
 
     if let Some(host_data) = host_data {
         if report.host_data != host_data {
-            return HostDataMissmatchSnafu{
+            return HostDataMismatchSnafu{
                 expected: host_data,
                 got: report.host_data,
             }.fail();
@@ -340,7 +340,7 @@ where
 
     if let Some(ld) = ld {
         if !report.measurement.eq(&ld) {
-            return LaunchDigestMissmatchSnafu{
+            return LaunchDigestMismatchSnafu{
                 expected: ld,
                 got: report.measurement
             }.fail();
@@ -388,7 +388,7 @@ pub enum ReportVerificationError {
     InvalidSignature{source: Whatever},
 
     #[snafu(display("Invalid policy, expected {:x?} got {:x?}",expected,got))]
-    PolicyMissmatch{
+    PolicyMismatch{
         expected: GuestPolicy,
         got: GuestPolicy
     },
@@ -399,31 +399,31 @@ pub enum ReportVerificationError {
     },
 
     #[snafu(display("Invalid TCB version data, expected {:x?} got {:x?}", expected, got))]
-    TcbVersionMissmatch{
+    TcbVersionMismatch{
         expected: TcbVersion,
         got: TcbVersion,
     },
 
     #[snafu(display("Invalid PlatformInfo, expected {} got {}", expected, got))]
-    PlatformInfoMissmatch{
+    PlatformInfoMismatch{
         expected: PlatformInfo,
         got: PlatformInfo,
     },
 
     #[snafu(display("Invalid HostData, expected 0x{} got 0x{}", hex::encode(expected), hex::encode(got)))]
-    HostDataMissmatch{
+    HostDataMismatch{
         expected: [u8; 32],
         got: [u8; 32],
     },
 
     #[snafu(display("Invalid launch digest, expected 0x{} got 0x{}", hex::encode(expected), hex::encode(got)))]
-    LaunchDigestMissmatch{
+    LaunchDigestMismatch{
         expected: [u8; 48],
         got: [u8; 48],
     },
 
     #[snafu(display("Invalid report data, expected {} got {}",expected, got))]
-    ReportDataMissmatch{
+    ReportDataMismatch{
         expected: String,
         got: String,
     }
@@ -449,7 +449,7 @@ where
     F: Fn([u8; 64]) -> Result<(), ReportVerificationError>,
 {
     //checking the data before checking the signature makes it easier to find the root-cause for errors.
-    //If we check the signature first, it could be invalid because of missmatching data or because
+    //If we check the signature first, it could be invalid because of mismatching data or because
     //of an actually invalid signature/signature key
     check_report_data(
         report,
