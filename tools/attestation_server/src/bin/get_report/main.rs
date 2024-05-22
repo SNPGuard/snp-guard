@@ -1,8 +1,8 @@
-use std::fs::{File};
+use std::fs::File;
 
 use clap::Parser;
 use sev::firmware::guest::Firmware;
-use snafu::{ResultExt, Whatever};
+use snafu::{whatever, ResultExt, Whatever};
 use base64::{engine::general_purpose, Engine};
 
 #[derive(Parser, Debug)]
@@ -15,7 +15,7 @@ struct Args {
     #[arg(long, default_value = "")]
     report_data: String,
 }
-
+#[snafu::report]
 fn main() -> Result<(), Whatever> {
     let args = Args::parse();
 
@@ -25,7 +25,7 @@ fn main() -> Result<(), Whatever> {
     let len = report_data_raw.len();
 
     if len > 64 {
-        panic!("Report data length should be <= 64 bytes!");
+        whatever!("report data length should be <= 64 bytes, but got {} bytes!", len);
     }
 
     let mut report_data = [0u8; 64];

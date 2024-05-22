@@ -9,7 +9,8 @@ use ring::{
     agreement::{self, EphemeralPrivateKey},
     rand,
 };
-use snafu::{whatever, ResultExt, Whatever};
+use sev::firmware::guest::AttestationReport;
+use snafu::{whatever, FromString, ResultExt, Whatever};
 use tiny_http::{Request, Response, Server};
 
 fn wait_for_request(server: &Server) -> Request {
@@ -43,37 +44,36 @@ enum ServerState {
 ///Fetch attestation report and generate key material the DH key deriviation used for secret injection
 fn send_report(mut req:  Request, config: &Config) -> Result<SecretInjectionParams, Whatever> {
     let att_req: AttestationRequest =
-        serde_json::from_reader(req.as_reader()).whatever_context("failed to deserialize")?;
-    println!("Request Body: {:?}", att_req);
+        serde_json::from_reader(req.as_reader()).whatever_context("failed to parse request body as json")?;
 
     println!("Requesting attestation report");
 
     let rng = rand::SystemRandom::new();
     let server_private_key = agreement::EphemeralPrivateKey::generate(&agreement::X25519, &rng)
-        .expect("failed to generate private server key");
+    .map_err(|_| Whatever::without_source("failed to generate private DH key".to_string())).whatever_context("failed to generate private DH key for server")?;
     let server_public_key = server_private_key
         .compute_public_key()
-        .expect("failed to compute public key")
+        .map_err(|_| Whatever::without_source("failed to derive public dh key from private key".to_string())).whatever_context("failed to generate public DH key for server")?
         .as_ref()
         .try_into()
-        .expect("unexpected public key length");
+        .whatever_context("generated public dh key has unexpected length, expected 32 bytes")?;
 
-    let att_report = if config.mock_mode {
+    let att_report: AttestationReport = if config.mock_mode {
         MockSNPAttestation::get_report(att_req.nonce, server_public_key)
-            .expect("failed to get mock attestation reort")
+            .whatever_context("failed to get mock attestation reort")?
     } else {
         SNPAttestation::get_report(att_req.nonce, server_public_key)
-            .expect("failed to get real attestation report")
+            .whatever_context("failed to request attestation report from secure processor")?
     };
 
     println!("Got attestation report. Sending it to client");
 
     let att_report_json =
-        serde_json::to_string(&att_report).expect("failed to serialize report as json");
+        serde_json::to_string(&att_report).whatever_context("failed to serialize attestation report as json")?;
     let header =
-        tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
+        tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).expect("should never happen");
     let resp = Response::from_string(att_report_json).with_header(header);
-    req.respond(resp).expect("failed to send response");
+    req.respond(resp).whatever_context("failed to send attestation report to client")?;
 
     Ok(SecretInjectionParams{
         nonce: att_req.nonce,
@@ -93,24 +93,23 @@ fn process_injected_secret(mut req: Request, key_material: SecretInjectionParams
     let client_public_key =
         agreement::UnparsedPublicKey::new(&agreement::X25519, wrapped_key.client_public_key);
     let mut shared_secret = Vec::new();
-    agreement::agree_ephemeral(key_material.eph_server_dh_key, &client_public_key, |key_material| {
-        shared_secret
-            .write_all(key_material)
-            .expect("failed to store key material");
-        // In a real application, we'd apply a KDF to the key material and the
-        // public keys (as recommended in RFC 7748) and then derive session
-        // keys from the result. We omit all that here.
-    })
-    .expect("failed to generate shared key");
+    agreement::agree_ephemeral(
+        key_material.eph_server_dh_key, &client_public_key,
+        |key_material| -> Result<(),Whatever>{
+            shared_secret
+                .write_all(key_material).whatever_context("failed to store derived shared secret in buffer")
+        },
+    ).map_err(|_| Whatever::without_source("failed to compute shared secret from DH keys".to_string())).whatever_context("failed to derive shared secret")?.whatever_context("internal error")?;
 
+    let unwrapped_disk_key = aead_dec(&shared_secret, key_material.nonce, wrapped_key.wrapped_disk_key).whatever_context("failed to decrypt wrapped disk encryption key")?;
     println!("Decrypted wrapped key");
-    let unwrapped_disk_key = aead_dec(&shared_secret, key_material.nonce, wrapped_key.wrapped_disk_key);
     let unwrapped_disk_key =
-        str::from_utf8(&unwrapped_disk_key).expect("failed to convert unwrapped key to string");
-    let mut out_file = File::create("./disk_key.txt").expect("failed to create disk key");
+        str::from_utf8(&unwrapped_disk_key).whatever_context("failed to convert unwrapped disk encryption key to string")?;
+    const OUT_KEY_FILE: &'static str = "./disk_key.txt";
+    let mut out_file = File::create(OUT_KEY_FILE).whatever_context(format!("failed to create output file for disk encryption key at {}",OUT_KEY_FILE))?;
     out_file
         .write_all(unwrapped_disk_key.as_bytes())
-        .expect("failed to write to file");
+        .whatever_context(format!("failed to write disk encrpytion key to file {}", OUT_KEY_FILE))?;
 
     Ok(())
 }
@@ -123,6 +122,13 @@ fn run(config: &Config) -> Result<(), Whatever> {
     };
     loop {
         let req = wait_for_request(&server);
+        println!("Req URL: {}", req.url());
+        if "/reset" == req.url() {
+            state = ServerState::Ready;
+            println!("Resetting attestation server state");
+            req.respond(Response::from_string("Ok")).whatever_context("failed to ack reset request")?;
+            continue;
+        }
         match state {
             ServerState::Ready => match send_report(req, config) {
                 Ok(secret_injectin_params) => {
@@ -130,7 +136,7 @@ fn run(config: &Config) -> Result<(), Whatever> {
                         state = ServerState::WaitingForSecretInjection(secret_injectin_params)
                     }
                 }
-                Err(e) => eprintln!("Error while serving attestation report: {:#?}", e),
+                Err(e) => eprintln!("Error while serving attestation report request: {:#?}", e),
             },
             ServerState::WaitingForSecretInjection(params) => {
                 match process_injected_secret(req, params) {

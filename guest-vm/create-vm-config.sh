@@ -1,8 +1,8 @@
 #!/bin/bash
 #Creates the central VM config file that is used by our launch
 #scripts as well as our attestation tools
-#Using a central config file guards against accidential missmatches
-#in i.e. kernel cmdline or OVMF binary that lead to missmatching attestation values
+#Using a central config file guards against accidential mismatches
+#in i.e. kernel cmdline or OVMF binary that lead to mismatching attestation values
 
 set -e
 
