@@ -312,7 +312,7 @@ where
             || got.snp < tcb.snp
             || got.microcode < tcb.microcode
         {
-            return TcbVersionMismatchSnafu{expected:tcb, got:report.committed_tcb}.fail();
+            return TcbVersionMismatchSnafu{required_minimum:tcb, got:report.committed_tcb}.fail();
         }
     }
 
@@ -398,7 +398,7 @@ pub enum ReportVerificationError {
         source: Whatever
     },
 
-    #[snafu(display("TCB version does not match mininum required version, want at least {:x?} but got {:x?}", expected, got))]
+    #[snafu(display("TCB version does not match mininum required version, want at least {:x?} but got {:x?}", required_minimum, got))]
     TcbVersionMismatch{
         required_minimum: TcbVersion,
         got: TcbVersion,
