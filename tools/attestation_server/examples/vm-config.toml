@@ -7,11 +7,10 @@ vcpu_count = 1
 ovmf_file = "path to OVMF.fd file used by QEMU"
 # Guest-controlled SEV feature selection as defined in the SEV_FEATURES section
 # of the VMSA (Table B-4 in [1] )
-#Since these are part of the VMSA, they influence the launch digest in the attestation report
+# Since these are part of the VMSA, they influence the launch digest in the attestation report
 # For now, there does not seem to be an easy way to configure these from userspace
-# All SEV-SNP VMs have bit 0 set
-# Bit 5 is set, /sys/module/kvm_amd/parameters/debug_swap is set and your CPU supports the feature, as indicated by cpuid "full debug state swap for SEV-ES guests  = true"
-guest_features = 0x21
+# All SEV-SNP VMs have bit 0 set, other bits are unset by default
+guest_features = 0x1
 #Path to the kernel that should get booted. Influences the lauch digest in the attestation report
 kernel_file = "path to kernel file that gets passed to QMEU"
 #Path to the initramdisk file that should be used for booting. Influences the launch digest in the attestation report
