@@ -1,4 +1,4 @@
-# openend2e-sevsnp
+# SNPGuard
 
 This repository demonstrates an end-to-end secured setup for a SEV-SNP VM. To
 achieve this, we build on the ideas from [2] and use the attestation process of
