@@ -1033,7 +1033,7 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "3.1.1"
-source = "git+https://github.com/its-luca/sev.git?branch=dev#b10295c237da8b7a4e284e964cd3ce983930c945"
+source = "git+https://github.com/SNPGuard/sev.git?branch=dev#b10295c237da8b7a4e284e964cd3ce983930c945"
 dependencies = [
  "base64 0.22.0",
  "bincode",
