@@ -333,11 +333,9 @@ add_opts "-no-reboot"
 # "normal" qemu drive on the host side, and it is exposed to the guest as a
 # persistent flash device.
 if [ "${SEV_SNP}" = 1 ]; then
-	# When updating to 6.9 kernel, SNP no longer supports using pflash unit=0 
-	# for loading the bios, and instead relies on "-bios ${UEFI_CODE}".
-		add_opts "-drive if=pflash,format=raw,unit=0,file=${UEFI_CODE},readonly"
+		add_opts "-bios ${UEFI_CODE}"
 	if [ -n "$UEFI_VARS" ]; then
-    	add_opts "-drive if=pflash,format=raw,unit=1,file=${UEFI_VARS}"
+    	add_opts "-drive if=pflash,format=raw,unit=0,file=${UEFI_VARS}"
 	fi
 else
     add_opts "-drive if=pflash,format=raw,unit=0,file=${UEFI_CODE},readonly"
