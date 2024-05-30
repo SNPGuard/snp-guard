@@ -77,6 +77,7 @@ install_dependencies:
 	./prepare-snp-dependencies.sh
 
 unpack_kernel: init_dir
+	rm -rf $(KERNEL_DIR)
 	dpkg -x $(KERNEL_DEB) $(KERNEL_DIR)
 
 build_tools: init_dir build_attestation_server
