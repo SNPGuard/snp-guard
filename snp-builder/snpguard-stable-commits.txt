@@ -6,13 +6,13 @@
 
 # hypervisor commit
 KERNEL_GIT_URL="https://github.com/SNPGuard/linux.git"
-KERNEL_HOST_BRANCH="snp-host-latest"
-KERNEL_GUEST_BRANCH="snp-guest-latest"
+KERNEL_HOST_BRANCH="snpguard-stable-6.9-host"
+KERNEL_GUEST_BRANCH="snpguard-stable-6.9-guest"
 
 # qemu commit
 QEMU_GIT_URL="https://github.com/SNPGuard/qemu.git"
-QEMU_BRANCH="snp-latest"
+QEMU_BRANCH="snpguard-stable-6.9"
 
 # guest bios
 OVMF_GIT_URL="https://github.com/SNPGuard/ovmf.git"
-OVMF_BRANCH="snp-latest"
+OVMF_BRANCH="snpguard-stable-6.9"
