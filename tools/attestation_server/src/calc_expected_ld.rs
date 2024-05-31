@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sev::firmware::guest::{GuestPolicy, PlatformInfo};
 use sev::firmware::host::TcbVersion;
-use sev::measurement::idblock_types::ID_BLK_ID_BYTES;
 use sev::measurement::{
     snp::{snp_calc_launch_digest, SnpMeasurementArgs},
     vmsa::{GuestFeatures, VMMType},
@@ -10,6 +9,9 @@ use snafu::{ResultExt, Whatever};
 
 use crate::snp_validate_report::ProductName;
 use hex_buffer_serde::{Hex as _, HexForm};
+
+///Length fo the FamilyID and the ImageID data types in bytes
+pub const IDBLOCK_ID_BYTES :usize = 16;
 
 #[derive(Serialize, Deserialize, Default)]
 ///User facing config struct to specify a VM.
@@ -32,9 +34,9 @@ pub struct VMDescription {
     /// Policy passed to QEMU and reflected in the attestation report
     pub guest_policy: GuestPolicy,
     #[serde(with = "HexForm")]
-    pub family_id: [u8; ID_BLK_ID_BYTES],
+    pub family_id: [u8; IDBLOCK_ID_BYTES],
     #[serde(with = "HexForm")]
-    pub image_id: [u8; ID_BLK_ID_BYTES],
+    pub image_id: [u8; IDBLOCK_ID_BYTES],
 }
 
 impl VMDescription {

@@ -20,7 +20,9 @@ use sev::{
     },
     measurement::idblock_types::{IdAuth, IdBlock, SevEcdsaPubKey},
 };
-use snafu::{whatever, ResultExt, Whatever,prelude::*};
+use snafu::{whatever, ResultExt, Whatever,prelude::*,FromString};
+
+use crate::calc_expected_ld::IDBLOCK_ID_BYTES;
 
 
 
@@ -209,10 +211,15 @@ impl TryFrom<(IdBlock, IdAuth)> for IDBLockReportData {
     type Error = Whatever;
 
     fn try_from((id, auth): (IdBlock, IdAuth)) -> Result<Self, Self::Error> {
+        let family_id_bytes : Vec<u8> = bincode::serialize(&id.family_id).whatever_context("failed to serialize family id to bytes")?;
+        let family_id_bytes : [u8;IDBLOCK_ID_BYTES] = family_id_bytes.try_into().map_err(|v| Whatever::without_source(format!("family id serialized to {:x?} but expected {} bytes", &v, IDBLOCK_ID_BYTES )))?;
+
+        let image_id_bytes : Vec<u8> = bincode::serialize(&id.image_id).whatever_context("failed to serialize image id to bytes")?;
+        let image_id_bytes : [u8;IDBLOCK_ID_BYTES] = image_id_bytes.try_into().map_err(|v| Whatever::without_source(format!("image id serialized to {:x?} but expected {} bytes", &v, IDBLOCK_ID_BYTES )))?;
         Ok(Self {
             guest_svn: id.guest_svn,
-            f_id: id.family_id.into(),
-            i_id: id.image_id.into(),
+            f_id: family_id_bytes,
+            i_id: image_id_bytes,
             id_key_digest: pubkey_to_id_block_digest(&auth.id_pubkey)
                 .whatever_context("failed to convert id pubkey to digest")?,
             author_key_digest: pubkey_to_id_block_digest(&auth.author_pub_key)
