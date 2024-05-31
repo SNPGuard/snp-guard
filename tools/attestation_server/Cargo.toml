@@ -26,7 +26,8 @@ tiny_http = "0.12.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.114"
 reqwest = { version="0.11.26", features = ["blocking","json"] }
-sev = { version="3.1.1", features=["openssl"] }
+#we want to support kernel 6.9 with the updated VMSA fields. This is already upstream but not yet part of the 3.1.1 release
+sev = { git = "https://github.com/virtee/sev", rev="4ea2d2c", features=["openssl"] }
 ring = "0.17.8"
 hex = "0.4.3"
 clap = { version = "4.5.3", features = ["derive"] }
