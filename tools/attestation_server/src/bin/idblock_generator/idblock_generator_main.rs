@@ -119,11 +119,14 @@ fn compute_id_block(
             .whatever_context("converting to id block digest failed")?,
     );
 
+    let family_id : FamilyId = bincode::deserialize(&vm_def.family_id).whatever_context(format!("failed to deserizalize family id {:x?}", &vm_def.family_id))?;
+    let image_id : ImageId = bincode::deserialize(&vm_def.image_id).whatever_context(format!("failed to deserialize image id {:x?}", &vm_def.image_id))?;
+
     // let id_block = IdBlock::new(, , , , )
     let block_calculations = snp_calculate_id(
         Some(ld),
-        Some(FamilyId(vm_def.family_id)),
-        Some(ImageId(vm_def.image_id)),
+        Some(family_id),
+        Some(image_id),
         None, //SVN is the "Security Version Number" of the PSP
         Some(vm_def.guest_policy.0),
         id_key_path.into(),
