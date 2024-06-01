@@ -45,7 +45,7 @@ adaptation.
 
 For building the SNP packages and preparing the guest we need to install some
 basic dependencies such as Docker, Rust toolchain, and a few packages via `apt`.
-The `install_dependencies` makefile target automates the whole process, at the
+The `install_dependencies` Makefile target automates the whole process, at the
 same time asking for user confirmation before proceeding with the installation.
 
 ```bash
@@ -70,9 +70,8 @@ mismatched launch measurements. For this reason, we provide a stable snapshot of
 these repositories in [our
 organization](https://github.com/orgs/SNPGuard/repositories) that can be used to
 build the SEV-SNP toolchain. Each of the options below can be configured to use
-our snapshots, and we recommend to use them for the time being. This is only a
-temporary workaround as we expect that soon the changes in the AMD forks will be
-upstreamed to the official repositories.
+our snapshots, and we recommend using them for the time being. This is only a
+temporary workaround, as Linux kernel 6.10 is supposed to contain SEV-SNP hypervisor support.
 
 ### Option 1: Download pre-built packages
 
@@ -133,8 +132,8 @@ cd ..
 ### Option 3: Build locally
 
 We wrote a convenience script that installs all build dependencies and builds
-the required packages. Note that building the linux kernel may take several
-hours. 
+the required packages. Note that building the Linux kernel may take several
+hours.
 
 ```bash
 # Run build script
@@ -163,15 +162,15 @@ guide](https://github.com/AMDESE/AMDSEV/tree/snp-latest#upgrade-sev-firmware).
 
 Some BIOS settings are required in order to use SEV-SNP. The settings slightly
 differ, but make sure to check the following:
+
 - `Secure Nested Paging`: to enable SNP
 - `Secure Memory Encryption`: to enable SME (not required for running SNP guests)
 - `SNP Memory Coverage`: needs to be enabled to reserve space for the Reverse
   Map Page Table (RMP). [Source](https://github.com/AMDESE/AMDSEV/issues/68)
 - `Minimum SEV non-ES ASID`: this option configures the minimum address space ID
   used for non-ES SEV guests. By setting this value to 1 you are allocating all
-  ASIDs for normal SEV guests and it would not be possible to enable SEV-ES and
+  ASIDs for normal SEV guests, and it would not be possible to enable SEV-ES and
   SEV-SNP. So, this value should be greater than 1.
-
 
 ### Step 2: Install host kernel
 
@@ -188,18 +187,19 @@ sudo ./install.sh
 ### Step 3: Ensure that kernel options are correct
 
 - Make sure that IOMMU is enabled and **not** in passthrough mode, otherwise
-  SEV-SNP will not work. Ensure that the iommu flag is set to `iommu=nopt` under
+  SEV-SNP will not work. Ensure that the IOMMU flag is set to `iommu=nopt` under
   `GRUB_CMDLINE_LINUX_DEFAULT`.
   [Source](https://github.com/AMDESE/AMDSEV/issues/88)
-    - Check both `/etc/default/grub` and `/etc/default/grub.d/rbu-kernel.cfg`
-    - If needed (i.e., if SEV-SNP doesn't work) set also `iommu.passthrough=0`
+  
+  - Check both `/etc/default/grub` and `/etc/default/grub.d/rbu-kernel.cfg`
+  - If needed (i.e., if SEV-SNP doesn't work) set also `iommu.passthrough=0`
 
 - With recent SNP-enabled kernels, KVM flags should be already set correctly.
   For earlier versions, you may need to set the following flags in
   `/etc/default/grub`:
-    - `kvm_amd.sev=1`
-    - `kvm_amd.sev-es=1` 
-    - `kvm_amd.sev-snp=1`
+  - `kvm_amd.sev=1`
+  - `kvm_amd.sev-es=1`
+  - `kvm_amd.sev-snp=1`
 
 - SME should not be required to run SEV-SNP guests. In any case, to enable it
   you should set the following flag: `mem_encrypt=on`.
@@ -237,11 +237,11 @@ sudo dmesg | grep -i -e rmp -e sev
 # SEV-ES and SEV-SNP supported: 99 ASIDs
 ```
 
-## Prepare guest 
+## Prepare guest
 
 ### Step 0: Unpack kernel
 
-We first need to unpack the kernel obtained from the built packages. By default
+We first need to unpack the kernel obtained from the built packages. By default,
 the kernel package can be found under
 `build/snp-release/linux/guest/linux-image-*.deb`. We unpack it to
 `build/kernel`.
@@ -255,7 +255,7 @@ make unpack_kernel
 We need to build a customized initramfs (i.e., initial RAM disk) to configure
 boot options at early userspace and enable our workflows.
 
-We do this by leveraging Docker. In short, we run a `ubuntu` container and then
+We do this by leveraging Docker. In short, we run a `ubuntu` container, and then
 we export its filesystem on `build/initramfs/`. Afterwards, we make the
 necessary adjustments to the filesystem, such as adding a `init` script,
 removing unnecessary folders, and changing file permissions. Finally, we build
@@ -274,14 +274,12 @@ make initramfs
 
 ### Step 2: Prepare guest image
 
-**Option A: use an existing image**
+#### Option A: use an existing image
 
 Note: if you wish to run our integrity-only workflow you should make sure to
 delete *all secrets* from the guest VM (see
 [below](#run-integrity-only-workflow)). SSH keys, instead, are regenerated
 automatically.
-
-TODO: check if our workflows work with lvm2 (maybe need to patch init script)
 
 ```bash
 # Run VM for configuration
@@ -293,7 +291,7 @@ scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:
 # from within the guest: check guest configuration below
 ```
 
-**Option B: create a new image**
+#### Option B: create a new image
 
 ```bash
 # create image (will be stored under build/guest/sevsnptest.qcow2)
@@ -309,22 +307,20 @@ scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:
 # from within the guest: check guest configuration below
 ```
 
-**Guest configuration**
+#### Guest configuration
 
 ```bash
 # Get an IP address if you do not have it already
 sudo dhclient
 
 # install kernel and headers (copied before)
-# This is needed even when running direct boot, otherwise:
-# - there is no sev-guest kernel module in the guest
-# - somehow there is no connectivity (missing network interface, only lo is present)
+# This is needed even when running direct boot, as we still need access to the kernel module files
 sudo dpkg -i linux-*.deb
 
 # remove kernel and headers to save space
 rm -rf linux-*.deb
 
-# disable multipath service (it causes some conflicts)
+# disable multipath service (causes some conflicts)
 sudo systemctl disable multipathd.service
 
 # disable EFI and swap partitions in /etc/fstab
@@ -352,6 +348,7 @@ is important to properly configure the template according to the host and guest
 configuration. Most of the options will be automatically configured by our
 scripts, but the user should manually check the following options to ensure they
 are correct (the template contains useful information to understand them):
+
 - `host_cpu_family`
 - `platform_info`
 - `min_commited_tcb`
@@ -368,10 +365,10 @@ image using `dm-verity`. Integrity protection is ensured by a Merkle hash tree,
 passed as a separate disk, and a root hash passed as kernel command-line
 argument. Only the root hash must be protected from tampering to preserve the
 integrity of the root filesystem. In our workflow, since the kernel command line
-is measured with SEV-SNP and Direct Linux Boot, the root hash is protected and
+is measured with SEV-SNP and Direct Linux Boot, the root hash is protected, and
 its value is reflected in the attestation report.
 
-A read-only filesystem can give strong integrity guarantees but it is not very
+A read-only filesystem can give strong integrity guarantees, but it is not very
 practical, as in most cases a guest needs write permission to certain disk
 locations. Moreover, as also mentioned in the [dm-verity
 wiki](https://wiki.archlinux.org/title/Dm-verity), there may be boot and runtime
@@ -388,6 +385,7 @@ to the guest to store permanent data, optionally encrypted/authenticated with a
 guest key (e.g., a sealing key provided by the AMD SP).
 
 The following folders will be mounted as read-write `tmpfs`:
+
 - `/home` (max. 8GiB)
 - `/var` (max. 2GiB)
 - `/etc` (max. 1GiB)
@@ -445,6 +443,7 @@ make run_verity_workflow
 ```
 
 You can pass the following, optional parameters:
+
 - `VERITY_IMAGE` and `VERITY_HASH_TREE` to use a custom image and hash tree
 - `MEMORY` to specify the memory size in MB
 - `CPUS`: Number of CPUs that the guest CVM will have. It is important to
@@ -479,9 +478,10 @@ make ssh
 ```
 
 Both commands above accept the following parameters:
+
 - `VM_HOST`: hostname of the guest VM (default: `localhost`)
 - `VM_PORT`: port of the guest VM (default: `2222`)
-- `VM_USER`: user of the guest VM to login to (default: `ubuntu`)
+- `VM_USER`: user of the guest VM used for login (default: `ubuntu`)
 
 ## Run encrypted workflow
 
@@ -515,6 +515,7 @@ make run_luks_workflow
 ```
 
 You can pass the following, optional parameters:
+
 - `MEMORY` to specify the memory size in MB
 - `CPUS`: Number of CPUs that the guest CVM will have. It is important to
   specify the correct value because it will be reflected in the launch
@@ -538,7 +539,7 @@ match the expected values.
 
 ## Optional features
 
-### ID Block and an ID Auth block
+### ID Block and an ID Author block
 
 This is an optional feature of the SEV-SNP, attestation, might be useful for
 certain use cases. In can be used with any of the workflows.
@@ -551,8 +552,9 @@ digest and the guest policy before entering the VM. Otherwise, both would only
 be checked at runtime, during the attestation handshake described later in this
 document.
 
-Use the following command to generate an ID block and id auth block files for
+Use the following command to generate an ID block and id author block files for
 usage with QEMU:
+
 ```bash
 # generate id_key.pem
 openssl ecparam -name secp384r1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out priv_id_key.pem
@@ -571,6 +573,7 @@ To use them, add `id-block <path to id-block.base64> -id-auth <path to
 auth-block.base64>` and when calling `launch.sh`. See e.g. the
 `run_luks_workflow` recipe in the [Makefile](Makefile) to get an idea how to
 manually call the launch script.
+To include the ID block and the ID author block in the verification process, you need to pass the base64 files to the verification binary via the `id-block-path` and `author-block-path` options.
 
 ## Tips and tricks
 
