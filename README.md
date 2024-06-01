@@ -9,6 +9,16 @@ explains how to set up a SEV-SNP VM, it does not cover these topics at all.
 Currently, this repo is mainly intended as a technical demo and NOT intended to
 be used in any kind of production scenario.
 
+This repo is part of the SysTEX24 Tool Paper "SNPGuard: Remote Attestation of SEV-SNP VMs Using Open Source Tools". Please cite as
+```bibtex
+@article{wilke2024snpguard,
+  title = {{SNPG}uard: Remote Attestation of {SEV-SNP} {VM}s Using Open Source Tools},
+  author = {Luca Wilke and Gianluca Scopelliti},
+  year={2024},
+  note ={To appear at SysTEX 2024}
+}
+```
+
 We explicitly decided to boot into a feature rich initramfs to enable easy
 tweaking of the boot process to explore novel ideas.
 
