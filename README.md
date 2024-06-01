@@ -1,9 +1,9 @@
 # SNPGuard
 
 This repository demonstrates an end-to-end secured setup for a SEV-SNP VM. To
-achieve this, we build on the ideas from [2] and use the attestation process of
+achieve this, we build on the [ideas from the open source community](https://www.youtube.com/watch?v=4wZnl0njxm8) and use the attestation process of
 SEV-SNP in combination with software tools like full authenticated disk
-encryption to provide a secure SEV setup. While the official AMD repo [1]
+encryption to provide a secure SEV setup. While the official [AMD repo](https://github.com/AMDESE/AMDSEV/tree/snp-latest)
 explains how to set up a SEV-SNP VM, it does not cover these topics at all.
 
 Currently, this repo is mainly intended as a technical demo and NOT intended to
@@ -254,17 +254,16 @@ make unpack_kernel
 We need to build a customized initramfs (i.e., initial RAM disk) to configure
 boot options at early userspace and enable our workflows.
 
-We do this by leveraging Docker. In short, we run a `ubuntu` container, and then
+We do this by leveraging Docker. In short, we run an Ubuntu container, and then
 we export its filesystem on `build/initramfs/`. Afterwards, we make the
 necessary adjustments to the filesystem, such as adding a `init` script,
 removing unnecessary folders, and changing file permissions. Finally, we build
 the initramfs archive using CPIO.
 
-First, however, we build custom tools that are needed in initramfs, such as
-`attestation_server`. All tools will be copied to the `build/bin` directory.
+First, however, we build some self-written tools that we use to facilitate the attestation process. All tools will be copied to the `build/bin` directory.
 
 ```bash
-# Build custom tools
+# Build tools for attestation process
 make build_tools
 
 # Create initramfs
@@ -286,9 +285,9 @@ make run IMAGE=<your_image>
 
 # Copy kernel and headers to guest
 scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:
-
-# from within the guest: check guest configuration below
 ```
+
+Continue with [checking the guest configuration](#guest-configuration) from within in the guest.
 
 #### Option B: create a new image
 
@@ -302,9 +301,9 @@ make run_setup
 # Copy kernel and headers to guest
 # note: if the guest does not have an IP address check below instructions
 scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:
-
-# from within the guest: check guest configuration below
 ```
+
+Continue with [checking the guest configuration](#guest-configuration) from within in the guest.
 
 #### Guest configuration
 
@@ -592,8 +591,3 @@ Host localtestvm
 	StrictHostKeyChecking no
 	UserKnownHostsFile=/dev/null
 ```
-
-## References
-
-- [1] https://github.com/AMDESE/AMDSEV/tree/snp-latest
-- [2] https://www.youtube.com/watch?v=4wZnl0njxm8
