@@ -83,8 +83,7 @@ been built using our Option 2 below.
 mkdir -p build && cd build
 
 # Download archive from our Github repository
-# TODO: update link
-wget <link> 
+wget https://github.com/SNPGuard/snp-guard/releases/download/v1.0.0-rc1/snp-release.tar.gz
 
 # unpack archive
 tar -xf snp-release.tar.gz
