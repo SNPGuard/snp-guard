@@ -4,6 +4,7 @@ use sev::firmware::host::TcbVersion;
 use sev::measurement::{
     snp::{snp_calc_launch_digest, SnpMeasurementArgs},
     vmsa::{GuestFeatures, VMMType},
+    vcpu_types::CpuType
 };
 use snafu::{ResultExt, Whatever};
 
@@ -43,7 +44,7 @@ impl VMDescription {
     pub fn compute_expected_hash(&self) -> Result<[u8; 384 / 8], Whatever> {
         let snp_measure_args = SnpMeasurementArgs {
             vcpus: self.vcpu_count,
-            vcpu_type: "EPYC-v4".into(),
+            vcpu_type: CpuType::EpycV4,
             ovmf_file: self.ovmf_file.clone().into(),
             guest_features: self.guest_features,
             kernel_file: Some(self.kernel_file.clone().into()),
