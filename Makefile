@@ -108,7 +108,7 @@ setup_luks:
 	mkdir -p $(BUILD_DIR)/luks
 	./guest-vm/setup_luks.sh -in $(IMAGE) -out $(LUKS_IMAGE)
 
-fetch_vm_config_template:
+fetch_vm_config_template: init_dir
 	cp $(VM_CONF_PATH) $(VM_CONF_TEMPLATE)
 
 attest_luks_vm:
@@ -122,9 +122,9 @@ ssh:
 	ssh -p $(VM_PORT) -o UserKnownHostsFile=$(SSH_HOSTS_FILE) $(VM_USER)@$(VM_HOST)
 
 init_dir:
-	mkdir -p $(BUILD_DIR)
-	mkdir -p $(BIN_DIR)
-	mkdir -p $(GUEST_DIR)
+	@mkdir -p $(BUILD_DIR)
+	@mkdir -p $(BIN_DIR)
+	@mkdir -p $(GUEST_DIR)
 
 clean:
 	rm -rf $(BUILD_DIR)

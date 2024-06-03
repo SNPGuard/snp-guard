@@ -89,7 +89,7 @@ echo "Mounting images.."
 sudo mount $SRC_ROOT_FS_DEVICE $SRC_FOLDER 
 sudo mount $DST_DEVICE $DST_FOLDER
 
-echo "Copying files.."
+echo "Copying files (this may take some time).."
 copy_filesystem
 
 echo "Preparing output filesystem for dm-verity.."

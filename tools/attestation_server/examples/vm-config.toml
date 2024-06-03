@@ -1,29 +1,44 @@
-#Name of the CPU generation running the VM. Relevant for selecting the correct
-#certificate chain when veryfing the attestation report
+# Name of the CPU generation running the VM. Relevant for selecting the correct
+# certificate chain when veryfing the attestation report
 host_cpu_family = "Milan"
-#Number of virtual CPUs used by the VM. As each VCPU has its own VMSA, this influences the launch digest in the attestation report
+
+# Number of virtual CPUs used by the VM. As each VCPU has its own VMSA
+# this influences the launch digest in the attestation report
 vcpu_count = 1
-#Path to the OVMF binary that should be used to boot the VM. Influences the launch digest in the attestation report
-ovmf_file = "path to OVMF.fd file used by QEMU"
+
+# Path to the OVMF binary that should be used to boot the VM
+# Influences the launch digest in the attestation report
+ovmf_file = "<path to OVMF file used by QEMU>"
+
 # Guest-controlled SEV feature selection as defined in the SEV_FEATURES section
-# of the VMSA (Table B-4 in [1] )
-# Since these are part of the VMSA, they influence the launch digest in the attestation report
+# of the VMSA (Table B-4 in [1]). Since these are part of the VMSA, 
+# they influence the launch digest in the attestation report
 # For now, there does not seem to be an easy way to configure these from userspace
 # All SEV-SNP VMs have bit 0 set, other bits are unset by default
 guest_features = 0x1
-#Path to the kernel that should get booted. Influences the lauch digest in the attestation report
-kernel_file = "path to kernel file that gets passed to QMEU"
-#Path to the initramdisk file that should be used for booting. Influences the launch digest in the attestation report
-initrd_file = "path to initramdisk file that gets passed to QEMU"
-#Kernel commandline parameters. Influences the launch digest in the attestation support
-# For debugging, you might want to use "console=ttyS0" to have a shell. Note however, that all information shown in this shell is copied to unecrytped video buffer memory
+
+# Path to the kernel that should get booted.
+# Influences the lauch digest in the attestation report
+kernel_file = "<path to kernel file that is passed to QEMU>"
+
+# Path to the initrd file that should be used for booting.
+# Influences the launch digest in the attestation report
+initrd_file = "<path to initrd file that is passed to QEMU>"
+
+# Kernel command-line parameters
+# Influences the launch digest in the attestation support
 kernel_cmdline = ""
 
 # Information about security relevant configuration option that affect the
-# whole host system, e.g. if SMT or RAPL are enabled.
-# Values are defined in Table 23 in [2]
+# whole host system, e.g. if SMT or RAPL are enabled
 # Attested by the the attestation report
-platform_info = 1
+# Values are defined in Table 23 in [2]. Below the meaning of currently used bits:
+# Bit 0 set: SMT (Simultaneous MultiThreading) is enabled
+# Bit 1 set: TSME (Transparent Secure Memory Encryption) is enabled
+# Bit 2 set: ECC (Error Correcting Code) is enabled
+# Bit 3 set: RAPL (Running Average Power Limit) is _disabled_
+# Bit 4 set: Ciperthext Hiding is enabled
+platform_info = 0x1
 
 # Guest-controlled config that can request the enablement of certain security
 # reveleant configuration on the host and also controls if the VM is debuggable
@@ -32,44 +47,35 @@ platform_info = 1
 guest_policy = 0x30000
 
 
-# OPTIONAL: Only used if id block and auth block are used see [3] for more information
+# OPTIONAL: Only used if id block and auth block are used (see [3] for more info)
 # Arbitrary used defined data to describe the VM. Defined in Table 74 in [2]
 # Interpreted as hex. Must be exactly 16 bytes long
 # Attested by the attestation report
 family_id = "00000000000000000000000000000000"
 
-# OPTIONAL: Only used if id block and auth block are used see [3] for more information
+# OPTIONAL: Only used if id block and auth block are used (see [3] for more info)
 # Arbitrary used defined data to describe the VM. Defined in Tablej 74 in [2]
 # Interpreted as hex. Must be exactly 16 bytes long
 # Attested by the attestation report
 image_id =  "00000000000000000000000000000000"
 
 
-#Request the minium version number that the host can use
-#for certain security relevant software components
-#Use the "sev-feature-info" tool on the host to discover the
+# Request the minimum version number that the host can use
+# for certain security relevant software components
+# Use the "sev-feature-info" tool on the host to discover the
 # currently used values
 # The attestation report contains 3 different variants for the
 # TCB: committed, launch and current
-# We check against the committed version as this ensures that the HV
+# We check against the committed version as this ensures that the hypervisor
 # cannot use a version older than this. However, the commmited version
-#  might be lower than the version reported by the tool.
-# Currently I don't now an easy way to find the commited version
-# If you boot without any firmware files in /lib/firmware/amd/
-# the reported version should match the committed version
+# might be lower than the version reported by the tool.
 [min_commited_tcb]
 bootloader = 3
 tee = 0
-#do not change this
-_reserved = [
-    0,
-    0,
-    0,
-    0,
-]
 snp = 20
 microcode = 209
-
+# reserved fields (do not change)
+_reserved = [0, 0, 0, 0]
 
 
 # References
@@ -83,5 +89,4 @@ microcode = 209
 # to populate the "ID_KEY_DIGEST" and "AUTHOR_KEY_DIGEST" fields of
 # the attestation report with the hash of two VM owner controlled public
 # keys
-# You can use the "idblock-generator" tool to create
-#
+# You can use the "idblock-generator" tool to create an ID block.

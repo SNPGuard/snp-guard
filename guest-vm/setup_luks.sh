@@ -77,7 +77,7 @@ sudo mkfs.ext4 /dev/mapper/snpguard_root
 sudo mount $SRC_ROOT_FS_DEVICE $SRC_FOLDER
 sudo mount /dev/mapper/snpguard_root $DST_FOLDER
 
-echo "Copying files.."
+echo "Copying files (this may take some time).."
 copy_filesystem
 
 echo "Success. Your encrypted disk image is at $DST_IMAGE"

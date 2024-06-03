@@ -1,26 +1,28 @@
 # SNPGuard
 
 This repository demonstrates an end-to-end secured setup for a SEV-SNP VM. To
-achieve this, we build on the [ideas from the open source community](https://www.youtube.com/watch?v=4wZnl0njxm8) and use the attestation process of
-SEV-SNP in combination with software tools like full authenticated disk
-encryption to provide a secure SEV setup. While the official [AMD repo](https://github.com/AMDESE/AMDSEV/tree/snp-latest)
-explains how to set up a SEV-SNP VM, it does not cover these topics at all.
+achieve this, we build on the [ideas from the open source
+community](https://www.youtube.com/watch?v=4wZnl0njxm8) and use the attestation
+process of SEV-SNP in combination with software tools like full authenticated
+disk encryption to provide a secure confidential VM (CVM) setup. While the
+official [AMD repo](https://github.com/AMDESE/AMDSEV/tree/snp-latest) explains
+how to set up a SEV-SNP VM, it does not cover these topics.
 
 Currently, this repo is mainly intended as a technical demo and NOT intended to
 be used in any kind of production scenario.
 
-This repo is part of the SysTEX24 Tool Paper "SNPGuard: Remote Attestation of SEV-SNP VMs Using Open Source Tools". Please cite as
+This repo is part of the SysTEX24 Tool Paper _"SNPGuard: Remote Attestation of
+SEV-SNP VMs Using Open Source Tools"_. Please cite as follows:
+
 ```bibtex
-@article{wilke2024snpguard,
-  title = {{SNPG}uard: Remote Attestation of {SEV-SNP} {VM}s Using Open Source Tools},
-  author = {Luca Wilke and Gianluca Scopelliti},
-  year={2024},
-  note ={To appear at SysTEX 2024}
+@inproceedings{wilke2024snpguard,
+  author     = {Wilke, Luca and Scopelliti, Gianluca},
+  title      = {SNPGuard: Remote Attestation of SEV-SNP VMs Using Open Source Tools},
+  year       = {2024},
+  booktitle  = {Proceedings of the 7th Workshop on System Software for Trusted Execution},
+  series     = {SysTEX '24}
 }
 ```
-
-We explicitly decided to boot into a feature rich initramfs to enable easy
-tweaking of the boot process to explore novel ideas.
 
 The workflow consists of five different stages:
 
@@ -31,15 +33,18 @@ The workflow consists of five different stages:
 5. Run: [integrity](#run-integrity-only-workflow) and
    [encrypted](#run-encrypted-workflow) workflows
 
-The first three steps are supposed to be done only once, unless you wish to
-install updated versions of the SNP tools and packages. Except for preparing the
-host and running VMs, the other steps do not need to be executed on a SNP
-machine.
+Steps 1 to 3 are supposed to be done only once, unless you wish to install
+updated versions of the SNP tools and packages.
 
-Note: the guide below is intended for users running a Debian-based Linux
-distribution such as Ubuntu or Debian. If you are using a different distribution
-most of our scripts likely will not work out of the box but will require some
-adaptation.
+In order to run our workflows, a machine with AMD EPYC 7xx3 (Milan) or 9xx4
+(Genoa) is required. The guide below assume that all steps are performed
+directly on the SNP host, although this is not strictly required for steps 1, 2
+and 4. 
+
+Note: the guide below is intended for users running a recent Debian-based Linux
+distribution such as Ubuntu or Debian, and it has been tested successfully on
+Ubuntu 22.04 LTS. If you are using a different distribution, some scripts might
+not work out of the box and might require some adaptation.
 
 ## Install dependencies
 
@@ -71,7 +76,8 @@ these repositories in [our
 organization](https://github.com/orgs/SNPGuard/repositories) that can be used to
 build the SEV-SNP toolchain. Each of the options below can be configured to use
 our snapshots, and we recommend using them for the time being. This is only a
-temporary workaround, as Linux kernel 6.10 is supposed to contain SEV-SNP hypervisor support.
+temporary workaround, as Linux kernel 6.10 is supposed to contain SEV-SNP
+hypervisor support.
 
 ### Option 1: Download pre-built packages
 
@@ -212,7 +218,7 @@ Note: outputs may slightly differ.
 ```bash
 # Check kernel version
 uname -r
-# 6.5.0-rc2-snp-host-ad9c0bf475ec
+# 6.9.0-rc7-snp-host-05b10142ac6a
 
 # Check if SEV is among the CPU flags
 grep -w sev /proc/cpuinfo
@@ -229,11 +235,15 @@ cat /sys/module/kvm_amd/parameters/sev_snp
 
 # Check if SEV is enabled in the kernel
 sudo dmesg | grep -i -e rmp -e sev
-# SEV-SNP: RMP table physical address 0x0000000035600000 - 0x0000000075bfffff
-# ccp 0000:23:00.1: sev enabled
-# ccp 0000:23:00.1: SEV-SNP API:1.51 build:1
-# SEV supported: 410 ASIDs
-# SEV-ES and SEV-SNP supported: 99 ASIDs
+# SEV-SNP: RMP table physical range [0x000000bf7e800000 - 0x000000c03f0fffff]
+# SEV-SNP: Reserving start/end of RMP table on a 2MB boundary [0x000000c03f000000]
+# ccp 0000:01:00.5: sev enabled
+# ccp 0000:01:00.5: SEV firmware update successful
+# ccp 0000:01:00.5: SEV API:1.55 build:21
+# ccp 0000:01:00.5: SEV-SNP API:1.55 build:21
+# kvm_amd: SEV enabled (ASIDs 510 - 1006)
+# kvm_amd: SEV-ES enabled (ASIDs 1 - 509)
+# kvm_amd: SEV-SNP enabled (ASIDs 1 - 509)
 ```
 
 ## Prepare guest
@@ -252,7 +262,8 @@ make unpack_kernel
 ### Step 1: Build custom initramfs
 
 We need to build a customized initramfs (i.e., initial RAM disk) to configure
-boot options at early userspace and enable our workflows.
+boot options at early userspace and enable our workflows. This allows easy
+tweaking of the boot process to explore novel ideas.
 
 We do this by leveraging Docker. In short, we run an Ubuntu container, and then
 we export its filesystem on `build/initramfs/`. Afterwards, we make the
@@ -272,7 +283,26 @@ make initramfs
 
 ### Step 2: Prepare guest image
 
-#### Option A: use an existing image
+To run our workflows, we recommend creating a new guest image from scratch, but
+we also support running from an existing image.
+
+#### Option A: create a new image
+
+```bash
+# create image (will be stored under build/guest/sevsnptest.qcow2)
+make create_new_vm
+
+# run image for initial setup
+make run_setup
+
+# Copy kernel and headers to guest
+# note: if the guest does not have an IP address check below instructions
+scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:
+```
+
+Continue with [checking the guest configuration](#guest-configuration) from within in the guest.
+
+#### Option B: use an existing image
 
 Note: if you wish to run our integrity-only workflow you should make sure to
 delete *all secrets* from the guest VM (see
@@ -284,22 +314,6 @@ automatically.
 make run IMAGE=<your_image>
 
 # Copy kernel and headers to guest
-scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:
-```
-
-Continue with [checking the guest configuration](#guest-configuration) from within in the guest.
-
-#### Option B: create a new image
-
-```bash
-# create image (will be stored under build/guest/sevsnptest.qcow2)
-make create_new_vm
-
-# run image for initial setup
-make run_setup
-
-# Copy kernel and headers to guest
-# note: if the guest does not have an IP address check below instructions
 scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:
 ```
 
@@ -343,18 +357,24 @@ make fetch_vm_config_template
 
 The template will then be stored in `./build/guest/vm-config-template.toml`. It
 is important to properly configure the template according to the host and guest
-configuration. Most of the options will be automatically configured by our
-scripts, but the user should manually check the following options to ensure they
-are correct (the template contains useful information to understand them):
+configuration.
+
+**NOTE**: Most of the options will be automatically configured by our scripts,
+but the user should manually check the following options to ensure they are
+correct (the template contains useful information to understand them):
 
 - `host_cpu_family`
 - `platform_info`
 - `min_commited_tcb`
 
-**Caution**: The make command above adds the `console=ttyS0` option to the kernel command line of the VM. This enables console output from the VM on the terminal, making it much easier to follow the steps in this manual and to debug potential errors.
-However, this is not a secure production setup, as all console data passes through unencrypted host memory.
-In addition, it increases the attack surface of the hypervisor.
-If you are running the VM locally this does not matter, but for a remote production setup, you should remove this option from the template config file and only log in via SSH.
+**Caution**: The make command above adds the `console=ttyS0` option to the
+kernel command line of the VM. This enables console output from the VM on the
+terminal, making it much easier to follow the steps in this manual and to debug
+potential errors. However, this is not a secure production setup, as all console
+data passes through unencrypted host memory. In addition, it increases the
+attack surface of the hypervisor. If you are running the VM locally this does
+not matter, but for a remote production setup, you should remove this option
+from the template config file and only log in via SSH.
 
 ## Run integrity-only workflow
 
@@ -481,6 +501,10 @@ Both commands above accept the following parameters:
 - `VM_PORT`: port of the guest VM (default: `2222`)
 - `VM_USER`: user of the guest VM used for login (default: `ubuntu`)
 
+**Note**: attestation may fail if the host CPU family, minimum TCB and platform
+info are not the expected ones, as explained
+[above](#step-3-prepare-template-for-attestation).
+
 ## Run encrypted workflow
 
 ### Step 1: Prepare dm-crypt
@@ -534,6 +558,10 @@ Unlike the integrity workflow, where we regenerate SSH keys, here the guest will
 still use its original keys. Therefore, it is up to the guest owner to verify
 the authenticity of future SSH connections by checking that the fingerprints
 match the expected values.
+
+**Note**: attestation may fail if the host CPU family, minimum TCB and platform
+info are not the expected ones, as explained
+[above](#step-3-prepare-template-for-attestation).
 
 ## Optional features
 
