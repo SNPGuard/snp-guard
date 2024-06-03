@@ -37,9 +37,9 @@ Steps 1 to 3 are supposed to be done only once, unless you wish to install
 updated versions of the SNP tools and packages.
 
 In order to run our workflows, a machine with AMD EPYC 7xx3 (Milan) or 9xx4
-(Genoa) is required. The guide below assume that all steps are performed
-directly on the SNP host, although this is not strictly required for steps 1, 2
-and 4. 
+(Genoa) is required. The guide below assumes that all steps are performed
+directly on the SNP host, although steps 1, 2 and 4 can (and should) be executed
+on a trusted machine (SEV-SNP is not required for those steps).
 
 Note: the guide below is intended for users running a recent Debian-based Linux
 distribution such as Ubuntu or Debian, and it has been tested successfully on
