@@ -166,10 +166,11 @@ guide](https://github.com/AMDESE/AMDSEV/tree/snp-latest#upgrade-sev-firmware).
 ### Step 1: BIOS settings
 
 Some BIOS settings are required in order to use SEV-SNP. The settings slightly
-differ, but make sure to check the following:
+differ from machine to machine, but make sure to check the following options:
 
 - `Secure Nested Paging`: to enable SNP
-- `Secure Memory Encryption`: to enable SME (not required for running SNP guests)
+- `Secure Memory Encryption`: to enable SME (not strictly required for running
+  SNP guests)
 - `SNP Memory Coverage`: needs to be enabled to reserve space for the Reverse
   Map Page Table (RMP). [Source](https://github.com/AMDESE/AMDSEV/issues/68)
 - `Minimum SEV non-ES ASID`: this option configures the minimum address space ID
