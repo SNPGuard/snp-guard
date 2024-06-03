@@ -296,9 +296,9 @@ make create_new_vm
 # run image for initial setup
 make run_setup
 
-# Copy kernel and headers to guest
+# (From another shell) Copy kernel and headers to the guest VM via SCP
 # note: if the guest does not have an IP address check below instructions
-scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:
+scp -P 2222 build/snp-release/linux/guest/*.deb ubuntu@localhost:
 ```
 
 Continue with [checking the guest configuration](#guest-configuration) from within in the guest.
@@ -314,7 +314,7 @@ automatically.
 # Run VM for configuration
 make run IMAGE=<your_image>
 
-# Copy kernel and headers to guest
+# (From another shell) Copy kernel and headers to guest
 scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:
 ```
 
@@ -337,8 +337,11 @@ rm -rf linux-*.deb
 sudo systemctl disable multipathd.service
 
 # disable EFI and swap partitions in /etc/fstab
-# already done if a new VM was created using our script
+# note: already done if a new VM was created using our script
 sudo mv /etc/fstab /etc/fstab.bak
+
+# Shut down VM
+sudo shutdown now
 ```
 
 ### Step 3: Prepare template for attestation
@@ -367,15 +370,6 @@ correct (the template contains useful information to understand them):
 - `host_cpu_family`
 - `platform_info`
 - `min_commited_tcb`
-
-**Caution**: The make command above adds the `console=ttyS0` option to the
-kernel command line of the VM. This enables console output from the VM on the
-terminal, making it much easier to follow the steps in this manual and to debug
-potential errors. However, this is not a secure production setup, as all console
-data passes through unencrypted host memory. In addition, it increases the
-attack surface of the hypervisor. If you are running the VM locally this does
-not matter, but for a remote production setup, you should remove this option
-from the template config file and only log in via SSH.
 
 ## Run integrity-only workflow
 
@@ -470,6 +464,16 @@ You can pass the following, optional parameters:
   measurement. Default: `1`.
 - `POLICY`: The SEV-SNP launch policy. Default: `0x30000`.
 
+**Caution**: The make command above adds the `console=ttyS0` option to the
+kernel command line of the VM. This enables console output from the VM on the
+terminal, making it much easier to follow the steps in this manual and to debug
+potential errors. However, this is not a secure production setup, as all console
+data passes through unencrypted host memory. In addition, it increases the
+attack surface of the hypervisor. If you are running the VM locally this does
+not matter, but for a remote production setup, you should remove this option
+from the Makefile (overriding the `KERNEL_CMDLINE` parameter) and only log in
+via SSH.
+
 ### Step 3: Verify guest integrity
 
 Now, after the guest has booted, we can connect to it via SSH and get an
@@ -524,12 +528,10 @@ make setup_luks
 
 ### Step 2: Launch guest
 
-To start the guest, run the command below.
-
 Now it's time to launch our guest VM. If everything goes well, you should be
 able to see a `Starting attestation server on 0.0.0.0:80` message in the
 initramfs logs, indicating that the guest is waiting to perform attestation and
-get the decryption key of the root filesystem (see below).
+get the decryption key of the root filesystem (see Step 3 below).
 
 ```bash
 # Run guest VM with `dm-verity` enabled
@@ -544,6 +546,16 @@ You can pass the following, optional parameters:
   specify the correct value because it will be reflected in the launch
   measurement. Default: `1`.
 - `POLICY`: The SEV-SNP launch policy. Default: `0x30000`.
+
+**Caution**: The make command above adds the `console=ttyS0` option to the
+kernel command line of the VM. This enables console output from the VM on the
+terminal, making it much easier to follow the steps in this manual and to debug
+potential errors. However, this is not a secure production setup, as all console
+data passes through unencrypted host memory. In addition, it increases the
+attack surface of the hypervisor. If you are running the VM locally this does
+not matter, but for a remote production setup, you should remove this option
+from the Makefile (overriding the `KERNEL_CMDLINE` parameter) and only log in
+via SSH.
 
 ### Step 3: Unlock encrypted filesystem
 
