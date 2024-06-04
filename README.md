@@ -54,7 +54,13 @@ The `install_dependencies` Makefile target automates the whole process, at the
 same time asking for user confirmation before proceeding with the installation.
 
 ```bash
-make install_dependencies
+# Install all dependencies. 
+# Note: the script will skip installation of any dependencies that you have already installed
+#        if you want install up-to-date packages, pass the flag "-f" to the script
+./install-dependencies.sh
+
+# Note: if this is the first installation of Docker or Rust,
+#       you may need to reload your shell
 ```
 
 ## Build packages
@@ -298,7 +304,7 @@ make run_setup
 
 # (From another shell) Copy kernel and headers to the guest VM via SCP
 # note: if the guest does not have an IP address check below instructions
-scp -P 2222 build/snp-release/linux/guest/*.deb ubuntu@localhost:
+scp -P 2222 build/snp-release/linux/guest/*.deb <username>@localhost:
 ```
 
 Continue with [checking the guest configuration](#guest-configuration) from within in the guest.

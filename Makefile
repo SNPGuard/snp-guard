@@ -73,9 +73,6 @@ run_luks_workflow:
 	./guest-vm/create-vm-config.sh $(VM_CONFIG_PARAMS) -cmdline "$(KERNEL_CMDLINE) $(LUKS_PARAMS)" -out $(VM_CONFIG_FILE)
 	sudo -E $(QEMU_LAUNCH_SCRIPT) $(QEMU_DEF_PARAMS) $(QEMU_SNP_PARAMS) -hda $(LUKS_IMAGE) -load-config $(VM_CONFIG_FILE)
 
-install_dependencies:
-	./prepare-snp-dependencies.sh
-
 unpack_kernel: init_dir
 	rm -rf $(KERNEL_DIR)
 	dpkg -x $(KERNEL_DEB) $(KERNEL_DIR)

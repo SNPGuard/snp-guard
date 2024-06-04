@@ -37,15 +37,6 @@ echo "Installing build dependencies for kernel, OVMF and QEMU"
 sudo apt update
 xargs -a $SCRIPT_DIR/dependencies.txt sudo apt install -y --no-install-recommends
 
-echo "Installing libslirp 4.7.1 packages, needed to enable user networking in QEMU"
-wget http://se.archive.ubuntu.com/ubuntu/pool/main/libs/libslirp/libslirp0_4.7.0-1_amd64.deb -O libslirp0.deb
-wget http://se.archive.ubuntu.com/ubuntu/pool/main/libs/libslirp/libslirp-dev_4.7.0-1_amd64.deb -O libslirp-dev.deb
-
-sudo dpkg -i libslirp0.deb
-sudo dpkg -i libslirp-dev.deb
-
-rm -rf libslirp0.deb libslirp-dev.deb
-
 if [ -z "$AMDPATH" ]; then
 	AMDPATH=$BUILD_DIR/AMDSEV
     git clone https://github.com/AMDESE/AMDSEV.git --branch snp-latest --depth 1 $AMDPATH
