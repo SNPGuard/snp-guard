@@ -50,8 +50,8 @@ not work out of the box and might require some adaptation.
 
 For building the SNP packages and preparing the guest we need to install some
 basic dependencies such as Docker, Rust toolchain, and a few packages via `apt`.
-The `install_dependencies` Makefile target automates the whole process, at the
-same time asking for user confirmation before proceeding with the installation.
+The `install_dependencies.sh` script automates the whole process, at the same
+time asking for user confirmation before proceeding with the installation.
 
 ```bash
 # Install all dependencies. 
