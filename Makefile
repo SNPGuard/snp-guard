@@ -97,7 +97,7 @@ initramfs_from_existing:
 initramfs:
 	./initramfs/build-initramfs-docker.sh -kernel-dir $(KERNEL_DIR) -init $(INIT_SCRIPT) -out $(INITRD)
 
-create_new_vm:
+create_new_vm: init_dir
 	./guest-vm/create-new-vm.sh -image-name sevsnptest.qcow2 -build-dir $(GUEST_DIR)
 
 setup_verity:
