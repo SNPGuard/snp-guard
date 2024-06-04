@@ -17,7 +17,7 @@ SEV-SNP VMs Using Open Source Tools"_](https://arxiv.org/abs/2406.01186). Please
 ```bibtex
 @inproceedings{wilke2024snpguard,
   author     = {Wilke, Luca and Scopelliti, Gianluca},
-  title      = {SNPGuard: Remote Attestation of SEV-SNP VMs Using Open Source Tools},
+  title      = {{SNPG}uard: Remote Attestation of {SEV}-{SNP} {VM}s Using Open Source Tools},
   year       = {2024},
   booktitle  = {Proceedings of the 7th Workshop on System Software for Trusted Execution},
   series     = {SysTEX '24}
