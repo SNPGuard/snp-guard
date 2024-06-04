@@ -41,7 +41,7 @@ if [ -z "$AMDPATH" ]; then
 	AMDPATH=$BUILD_DIR/AMDSEV
     git clone https://github.com/AMDESE/AMDSEV.git --branch snp-latest --depth 1 $AMDPATH
 	if [[ $USE_STABLE_SNAPSHOT -eq 1 ]]; then
-		echo "Switching to stable snapshtos for kernel, qemu and OVMF"
+		echo "Switching to stable snapshots for kernel, qemu and OVMF"
 		cp  "$SCRIPT_DIR/snpguard-stable-commits.txt" "$AMDPATH/stable-commits"
   	fi
 else
