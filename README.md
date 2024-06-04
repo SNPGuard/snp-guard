@@ -11,8 +11,8 @@ how to set up a SEV-SNP VM, it does not cover these topics.
 Currently, this repo is mainly intended as a technical demo and NOT intended to
 be used in any kind of production scenario.
 
-This repo is part of the SysTEX24 Tool Paper _"SNPGuard: Remote Attestation of
-SEV-SNP VMs Using Open Source Tools"_. Please cite as follows:
+This repo is part of the SysTEX24 Tool Paper [_"SNPGuard: Remote Attestation of
+SEV-SNP VMs Using Open Source Tools"_](https://arxiv.org/abs/2406.01186). Please cite as follows:
 
 ```bibtex
 @inproceedings{wilke2024snpguard,
