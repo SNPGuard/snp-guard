@@ -33,13 +33,14 @@ The workflow consists of five different stages:
 5. Run: [integrity](#run-integrity-only-workflow) and
    [encrypted](#run-encrypted-workflow) workflows
 
-Steps 1 to 3 are supposed to be done only once, unless you wish to install
+Stages 1 to 3 are supposed to be done only once, unless you wish to install
 updated versions of the SNP tools and packages.
 
 In order to run our workflows, a machine with AMD EPYC 7xx3 (Milan) or 9xx4
 (Genoa) is required. The guide below assumes that all steps are performed
-directly on the SNP host, although steps 1, 2 and 4 can (and should) be executed
-on a trusted machine (SEV-SNP is not required for those steps).
+directly on the SNP host, although stages 1, 2, 4, and step 1 of stage 5 can
+(and _should_) be executed on a trusted machine (SEV-SNP is not required for
+those steps).
 
 Note: the guide below is intended for users running a recent Debian-based Linux
 distribution such as Ubuntu or Debian, and it has been tested successfully on
