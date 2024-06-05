@@ -38,8 +38,8 @@ check_sudo() {
         warn "'sudo' is not installed on the machine. Please log in as 'root' and run 'apt-get update && apt-get install sudo'"
         exit 1
     fi
-
-    if ! sudo -v > /dev/null
+    
+    if ! sudo ls > /dev/null
     then
         warn "It seems like you don't have root privileges. Please make sure you are added to the 'sudo' group."
         exit 1
