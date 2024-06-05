@@ -317,6 +317,13 @@ delete *all secrets* from the guest VM (see
 [below](#run-integrity-only-workflow)). SSH keys, instead, are regenerated
 automatically.
 
+Caution: if your VM image uses a [LVM2
+filesystem](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)), make
+sure that on the host there are no other LVM2 filesystems mounted with the same
+name (you can check with `sudo lvdisplay`). Otherwise, we will not be able to
+extract the guest filesystem when preparing the integrity-protected or encrypted
+volume. Alternatively, you can use the Option A to avoid any potential issues.
+
 ```bash
 # Run VM for configuration
 make run IMAGE=<your_image>

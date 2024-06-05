@@ -34,6 +34,8 @@ clean_up() {
         sudo cryptsetup luksClose snpguard_root 2>/dev/null || true
     fi
 
+    unmount_lvm_device
+
     NEED_SLEEP=0
     if [ -e "$SRC_DEVICE" ]; then 
         echo "Disconnecting $SRC_DEVICE" 
@@ -55,6 +57,12 @@ clean_up() {
 }
 
 find_root_fs_device() {
+    get_lvm_device
+
+    if [ -n "$SRC_ROOT_FS_DEVICE" ];then
+        return
+    fi
+
 	SRC_ROOT_FS_DEVICE=$(sudo fdisk $SRC_DEVICE -l | grep -i "Linux filesystem" | awk '{print $1}')
 
 	if [ -n "$NON_INTERACTIVE" ]; then
@@ -89,7 +97,56 @@ find_root_fs_device() {
 	fi
 }
 
+# We store the number of LVM devices prior to mounting the VM image
+#
+# If, after mounting the VM image, there is a new LVM device compared to before,
+# it means that the VM image uses a LVM filesystem. Therefore, we try to access it.
+#
+# However, if there was already a LVM device mounted to the host before running the script,
+# we might not be able to fetch the correct device due to conflicting names
+check_lvm() {
+    __LVM_DEVICES=$(sudo lvdisplay 2>/dev/null | grep "LV Path" | wc -l)
+
+    if [ "$__LVM_DEVICES" -gt "0" ];then
+        echo "Warning: a LVM filesystem is currently in use on your system."
+        echo "If your guest VM image uses LVM as well, this script might not work as intended."
+        sleep 2
+    fi
+}
+
+get_lvm_device() {
+    # check for errors first
+    HAS_WARNING=$(sudo lvdisplay 2>&1 > /dev/null | grep "WARNING" | cat)
+    if [ -n "$HAS_WARNING" ];then
+        echo "Error: seems like the guest VM had a LVM filesystem that could not be mounted"
+        echo "Cannot continue. Try creating a new VM using our guide."
+        echo "Log from lvdisplay:"
+        echo "$HAS_WARNING"
+        exit 1
+    fi
+
+    LVM_DEVICES=$(sudo lvdisplay 2>/dev/null | grep "LV Path" | wc -l)
+
+    if [ "$LVM_DEVICES" -gt "$__LVM_DEVICES" ];then
+        SRC_ROOT_FS_DEVICE=$(sudo lvdisplay 2>/dev/null | grep "LV Path" | tail -n 1 | awk '{ print $3 }')
+        echo "Found LVM2 filesystem: $SRC_ROOT_FS_DEVICE"
+    fi
+}
+
+unmount_lvm_device() {
+    LVM_DEVICES=$(sudo lvdisplay 2>/dev/null | grep "LV Path" | wc -l)
+
+    if [ "$LVM_DEVICES" -gt "$__LVM_DEVICES" ];then
+        echo "Unmounting LVM device"
+        LVM_PATH=$(sudo lvdisplay 2>/dev/null | grep "LV Path" | tail -n 1 | awk '{ print $3 }')
+        VG_NAME=$(sudo lvdisplay 2>/dev/null | grep "VG Name" | tail -n 1 | awk '{ print $3 }')
+        sudo lvchange -an $LVM_PATH
+        sudo vgchange -an $VG_NAME
+    fi
+}
+
 initialize_nbd() {
+    check_lvm
     sudo modprobe nbd max_part=8
     sudo qemu-nbd --connect=$SRC_DEVICE $SRC_IMAGE
     sudo qemu-nbd --connect=$DST_DEVICE $DST_IMAGE
