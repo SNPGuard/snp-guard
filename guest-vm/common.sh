@@ -66,7 +66,7 @@ find_root_fs_device() {
 
 	ROOT_FS_FOUND=""
 	if [ -e "$SRC_ROOT_FS_DEVICE" ];then
-		echo "Root filesystem found: $SRC_ROOT_FS_DEVICE"
+		echo "Found the following filesystem: $SRC_ROOT_FS_DEVICE"
 		while [ -z "$ROOT_FS_FOUND" ]; do
 			read -p "Do you confirm that this is correct? (y/n): " choice
 			case "$choice" in 

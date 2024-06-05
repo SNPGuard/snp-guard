@@ -104,7 +104,7 @@ if [ -z "$SERVER_PRIVKEY_PATH" ]; then
 fi
 
 #Query Username and password
-echo "Enter usename"
+echo "Enter username"
 read -r USERNAME
 
 echo "Enter Password"

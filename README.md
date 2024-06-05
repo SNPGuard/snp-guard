@@ -158,7 +158,7 @@ hours.
 ### Step 0: SEV firmware
 
 SEV-SNP requires firmware version >= 1.51:1. To check which version of the
-firmware is installed, you can use the
+firmware is installed, you can install and use the
 [snphost](https://github.com/virtee/snphost) utility, as shown below:
 
 ```bash
@@ -301,6 +301,7 @@ we also support running from an existing image.
 make create_new_vm
 
 # run image for initial setup
+# Note: if you don't see a prompt after cloud-init logs, press ENTER
 make run_setup
 
 # (From another shell) Copy kernel and headers to the guest VM via SCP
@@ -500,11 +501,14 @@ connecting via `scp`. If attestation succeeds, the guest can then safely connect
 to its VM via SSH using the `known_hosts` file that will be stored in `./build`:
 
 ```bash
+# Note: the commands below have to be performed on a new shell in the host
+
 # Fetch attestation report via `scp` and attest the guest VM
-make attest_verity_vm
+# The report will be stored in `build/verity/attestation_report.json`
+make attest_verity_vm VM_USER=<your_user>
 
 # if attestation succeeds, safely connect via SSH
-make ssh
+make ssh VM_USER=<your_user>
 ```
 
 Both commands above accept the following parameters:
@@ -571,6 +575,10 @@ values, we securely inject the disk encryption key. To perform both steps, run
 the command below:
 
 ```bash
+# Note: the command below has to be performed on a new shell in the host
+
+# Fetch report from the VM and, if attestation succeeds, deploy encryption key
+# The report will be stored in `build/luks/attestation_report.json`
 LUKS_KEY=<your disk encryption key> make attest_luks_vm
 ```
 
@@ -620,6 +628,28 @@ auth-block.base64>` and when calling `launch.sh`. See e.g. the
 `run_luks_workflow` recipe in the [Makefile](Makefile) to get an idea how to
 manually call the launch script.
 To include the ID block and the ID author block in the verification process, you need to pass the base64 files to the verification binary via the `id-block-path` and `author-block-path` options.
+
+## Customization options
+
+Our workflows can be easily customized to fit the user's needs and try out new
+things.
+
+### Customizing launch parameters
+
+Check out the [Makefile](./Makefile) for a full list of parameters that are used
+in our commands, in particular QEMU launch arguments and guest kernel
+command-line parameters. Additionally, as described
+[above](#step-3-prepare-template-for-attestation), the VM configuration file can
+be adapted to the host configuration.
+
+### Enhancing initramfs
+
+in the [initramfs](./initramfs/) folder you can find the
+[Dockerfile](./initramfs/Dockerfile) used to create the container image from
+which we build our custom initramfs. The Dockerfile can be easily extended to
+add new packages and files. Besides, the [init](./initramfs/init.sh) script can
+be modified to execute custom logic when the kernel boots in early userspace,
+e.g., to support new workflows.
 
 ## Tips and tricks
 

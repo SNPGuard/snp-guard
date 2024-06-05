@@ -15,7 +15,7 @@ PORT=2222
 USER=ubuntu
 
 IN_REPORT=/etc/report.json
-OUT_REPORT=/tmp/report.json
+OUT_REPORT=build/verity/attestation_report.json
 
 usage() {
   echo "$0 [options]"
@@ -68,7 +68,7 @@ scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=$SSH_HOSTS_FILE -P $PORT $
 
 echo "Verifying attestation report.."
 FINGERPRINT=$(ssh-keygen -lf $SSH_HOSTS_FILE | awk '{ print $2 }' | cut -d ":" -f 2)
-$VERIFY_REPORT_BIN --input /tmp/report.json --vm-definition $VM_CONFIG --report-data $FINGERPRINT || {
+$VERIFY_REPORT_BIN --input $OUT_REPORT --vm-definition $VM_CONFIG --report-data $FINGERPRINT || {
 	echo "Failed to attest the VM"
 	rm -rf $SSH_HOSTS_FILE
 	exit 1
