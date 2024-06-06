@@ -96,7 +96,7 @@ been built using our Option 2 below.
 mkdir -p build && cd build
 
 # Download archive from our Github repository
-wget https://github.com/SNPGuard/snp-guard/releases/download/v0.1.1/snp-release.tar.gz
+wget https://github.com/SNPGuard/snp-guard/releases/download/v0.1.2/snp-release.tar.gz
 
 # unpack archive
 tar -xf snp-release.tar.gz
