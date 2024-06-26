@@ -47,6 +47,13 @@ distribution such as Ubuntu or Debian, and it has been tested successfully on
 Ubuntu 22.04 LTS. If you are using a different distribution, some scripts might
 not work out of the box and might require some adaptation.
 
+## Directory Overview
+- `attestation` : Helper scripts to fetch the attestation report for the [integrity-only](#run-integrity-only-workflow) use case
+- `guest-vm` : Scripts to create new VMs and to convert the VM disks for usage with the [integrity-only](#run-integrity-only-workflow) or [encrypted](#run-encrypted-workflow) workflows
+- `initramfs` : Custom initramfs that is used by SNPGuard to transition to the rich Linux environment
+- `snp-builder` : Scripts for building SEV-SNP dependencies from scratch
+- `tools` : Server and client binaries to fetch the attestation report inside the VM and to verify it on the host
+
 ## Install dependencies
 
 For building the SNP packages and preparing the guest we need to install some
@@ -54,6 +61,7 @@ basic dependencies such as Docker, Rust toolchain, and a few packages via `apt`.
 The `install_dependencies.sh` script automates the whole process, at the same
 time asking for user confirmation before proceeding with the installation.
 
+From the top-level directory, execute:
 ```bash
 # Install all dependencies. 
 # Note: the script will skip installation of any dependencies that you have already installed
@@ -91,6 +99,7 @@ hypervisor support.
 We provide pre-built packages as releases in our repository. Such packages have
 been built using our Option 2 below.
 
+From the top-level directory, execute:
 ```bash
 # create and move to build directory
 mkdir -p build && cd build
@@ -101,7 +110,7 @@ wget https://github.com/SNPGuard/snp-guard/releases/download/v0.1.2/snp-release.
 # unpack archive
 tar -xf snp-release.tar.gz
 
-# go back
+# go back to the top-level directory
 cd ..
 ```
 
@@ -113,6 +122,7 @@ kernel packages. The container will run in the background, allowing you to close
 the current shell and wait until the packages have been built. When the
 container has finished, we fetch the packages and extract the TAR archive.
 
+From the top-level directory, execute:
 ```bash
 # go to the `snp-builder` folder
 cd snp-builder
@@ -137,7 +147,7 @@ cd ../build
 # unpack archive
 tar -xf snp-release.tar.gz
 
-# go back
+# go back to the top-level directory
 cd ..
 ```
 
@@ -147,6 +157,7 @@ We wrote a convenience script that installs all build dependencies and builds
 the required packages. Note that building the Linux kernel may take several
 hours.
 
+From the top-level directory, execute:
 ```bash
 # Run build script
 # Without -use-stable-snapshots, the script will use the AMD upstream repos
@@ -190,6 +201,7 @@ differ from machine to machine, but make sure to check the following options:
 Note: if you followed the [build](#build-packages) guide above, the `install.sh`
 script to install the host kernel is available under `./build/snp-release/`:
 
+From the top-level directory, execute:
 ```bash
 cd build/snp-release
 sudo ./install.sh
@@ -263,6 +275,7 @@ the kernel package can be found under
 `build/snp-release/linux/guest/linux-image-*.deb`. We unpack it to
 `build/kernel`.
 
+From the top-level directory, execute:
 ```bash
 make unpack_kernel
 ```
@@ -281,6 +294,7 @@ the initramfs archive using CPIO.
 
 First, however, we build some self-written tools that we use to facilitate the attestation process. All tools will be copied to the `build/bin` directory.
 
+From the top-level directory, execute:
 ```bash
 # Build tools for attestation process
 make build_tools
@@ -296,6 +310,7 @@ we also support running from an existing image.
 
 #### Option A: create a new image
 
+From the top-level directory, execute:
 ```bash
 # create image (will be stored under build/guest/sevsnptest.qcow2)
 make create_new_vm
@@ -325,6 +340,7 @@ name (you can check with `sudo lvdisplay`). Otherwise, we will not be able to
 extract the guest filesystem when preparing the integrity-protected or encrypted
 volume. Alternatively, you can use the Option A to avoid any potential issues.
 
+From the top-level directory, execute:
 ```bash
 # Run VM for configuration
 make run IMAGE=<your_image>
@@ -337,10 +353,8 @@ Continue with [checking the guest configuration](#guest-configuration) from with
 
 #### Guest configuration
 
+From inside the guest:
 ```bash
-# Get an IP address if you do not have it already
-sudo dhclient
-
 # install kernel and headers (copied before)
 # This is needed even when running direct boot, as we still need access to the kernel module files
 sudo dpkg -i linux-*.deb
@@ -351,8 +365,8 @@ rm -rf linux-*.deb
 # disable multipath service (causes some conflicts)
 sudo systemctl disable multipathd.service
 
+# If you have not created the VM using our script, you need to 
 # disable EFI and swap partitions in /etc/fstab
-# note: already done if a new VM was created using our script
 sudo mv /etc/fstab /etc/fstab.bak
 
 # Shut down VM
@@ -370,6 +384,7 @@ both the launch script and attestation command.
 The configuration file is created from a template that can be retrieved with the
 command below:
 
+From the top-level directory, execute
 ```bash
 make fetch_vm_config_template
 ```
@@ -446,6 +461,7 @@ use the [setup_verity.sh](./guest-vm/setup_verity.sh) script to create a new VM
 image and copy the root filesystem there along with the required modifications.
 Then, we compute the `dm-verity` tree and root hash.
 
+From the top-level directory, execute
 ```bash
 # create verity image. Pass IMAGE=<path> to change source image to use.
 # By default, the image created with `make create_new_vm` is used
@@ -464,6 +480,7 @@ Possible errors in this step might be memory-related, either because one of the
 memory. In the former case, you might see a kernel panic, while in the latter
 case QEMU will kill the guest.
 
+From the top-level directory, execute
 ```bash
 # Run guest VM with `dm-verity` enabled
 # by default, we use the image and merkle tree generated in the previous step
@@ -507,6 +524,7 @@ in the report matches the SSH key fingerprint of the guest, obtained when
 connecting via `scp`. If attestation succeeds, the guest can then safely connect
 to its VM via SSH using the `known_hosts` file that will be stored in `./build`:
 
+From the top-level directory, execute
 ```bash
 # Note: the commands below have to be performed on a new shell in the host
 
@@ -536,8 +554,10 @@ First, We need to encrypt and integrity protect the root disk. We use the
 [setup_luks.sh](./guest-vm/setup_luks.sh) script to create a new encrypted VM
 image and copy the root filesystem there along with the required modifications.
 The script will ask the user to enter a passphrase that will be used as the disk
-encryption key.
+encryption key. The script will prompt for confirmation a few times, before it proceeds.
+Some of the prompts are case sensitive!
 
+From the top-level directory, execute
 ```bash
 # create encrypted image. Pass IMAGE=<path> to change source image to use.
 # By default, the image created with `make create_new_vm` is used
@@ -551,6 +571,7 @@ able to see a `Starting attestation server on 0.0.0.0:80` message in the
 initramfs logs, indicating that the guest is waiting to perform attestation and
 get the decryption key of the root filesystem (see Step 3 below).
 
+From the top-level directory, execute
 ```bash
 # Run guest VM with `dm-verity` enabled
 # by default, we use the image generated in the previous step
@@ -581,6 +602,7 @@ Next, we verify the attestation report. If it is valid and matches the expected
 values, we securely inject the disk encryption key. To perform both steps, run
 the command below:
 
+From the top-level directory, execute
 ```bash
 # Note: the command below has to be performed on a new shell in the host
 
@@ -616,6 +638,7 @@ document.
 Use the following command to generate an ID block and id author block files for
 usage with QEMU:
 
+From the top-level directory, execute
 ```bash
 # generate id_key.pem
 openssl ecparam -name secp384r1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out priv_id_key.pem
