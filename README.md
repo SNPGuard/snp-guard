@@ -15,12 +15,19 @@ This repo is part of the SysTEX24 Tool Paper [_"SNPGuard: Remote Attestation of
 SEV-SNP VMs Using Open Source Tools"_](https://arxiv.org/abs/2406.01186). Please cite as follows:
 
 ```bibtex
-@inproceedings{wilke2024snpguard,
-  author     = {Wilke, Luca and Scopelliti, Gianluca},
-  title      = {{SNPG}uard: Remote Attestation of {SEV}-{SNP} {VM}s Using Open Source Tools},
-  year       = {2024},
-  booktitle  = {Proceedings of the 7th Workshop on System Software for Trusted Execution},
-  series     = {SysTEX '24}
+@INPROCEEDINGS {wilke2024snpguard,
+author = {L. Wilke and G. Scopelliti},
+booktitle = {2024 IEEE European Symposium on Security and Privacy Workshops (EuroS&amp;PW)},
+title = {SNPGuard: Remote Attestation of SEV-SNP VMs Using Open Source Tools},
+year = {2024},
+volume = {},
+issn = {},
+pages = {193-198},
+doi = {10.1109/EuroSPW61312.2024.00026},
+url = {https://doi.ieeecomputersociety.org/10.1109/EuroSPW61312.2024.00026},
+publisher = {IEEE Computer Society},
+address = {Los Alamitos, CA, USA},
+month = {jul}
 }
 ```
 
