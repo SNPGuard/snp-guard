@@ -10,13 +10,11 @@ use base64::{engine::general_purpose, Engine};
 use clap::Parser;
 use snafu::{ResultExt, Whatever};
 
-use sev::{
-    measurement::{
+use sev::measurement::{
         idblock::snp_calculate_id,
-        idblock_types::{FamilyId, IdBlockLaunchDigest, IdMeasurements, ImageId},
-        large_array::LargeArray,
-    },
-};
+        idblock_types::{FamilyId, IdMeasurements, ImageId},
+        large_array::LargeArray, snp::SnpLaunchDigest,
+    };
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
@@ -114,7 +112,7 @@ fn compute_id_block(
     //based on the unit test in https://github.com/virtee/sev/blob/main/tests/id-block.rs
 
     let expected_ld = vm_def.compute_expected_hash()?;
-    let ld = IdBlockLaunchDigest::new(
+    let ld = SnpLaunchDigest::new(
         LargeArray::try_from(expected_ld)
             .whatever_context("converting to id block digest failed")?,
     );
@@ -128,7 +126,7 @@ fn compute_id_block(
         Some(family_id),
         Some(image_id),
         None, //SVN is the "Security Version Number" of the PSP
-        Some(vm_def.guest_policy.0),
+        Some(vm_def.guest_policy),
         id_key_path.into(),
         auth_key_path.into(),
     )

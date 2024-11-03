@@ -6,7 +6,7 @@ use sev::measurement::{
     vmsa::{GuestFeatures, VMMType},
     vcpu_types::CpuType
 };
-use snafu::{ResultExt, Whatever};
+use snafu::{whatever, ResultExt, Whatever};
 
 use crate::snp_validate_report::ProductName;
 use hex_buffer_serde::{Hex as _, HexForm};
@@ -61,7 +61,12 @@ impl VMDescription {
 
         let ld = snp_calc_launch_digest(snp_measure_args)
             .whatever_context("failed to compute launch digest")?;
-        Ok(ld)
+        let ld_vec = bincode::serialize(&ld).whatever_context("failed to bincode serialized SnpLaunchDigest to Vec<u8>")?;
+        let ld_arr : [u8; 384 / 8] = match ld_vec.try_into() {
+            Ok(v) => v,
+            Err(_) => whatever!("SnpLaunchDigest has unexpected length"),
+        };
+        Ok(ld_arr)
     }
 }
 
